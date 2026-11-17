@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的收藏 - 粉系衣橱</title>
+<link rel="stylesheet" href="lib/element-ui/index.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .page-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 18px; }
+  .page-title { font-size: 20px; font-weight: bold; color: var(--pink-dark); }
+  .fav-row { text-align: right; margin-top: 4px; }
+  .fav-row .el-button { padding: 0; }
+  .fav-empty { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(240,98,146,.08); padding: 40px 0; }
+</style>
+<script src="lib/axios.min.js"></script>
+<script src="js/common.js"></script>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+  <div class="gs-container">
+    <div class="page-head">
+      <div class="page-title">⭐ 我的收藏</div>
+    </div>
+
+    <div v-loading="loading">
+      <div class="gs-product-grid" v-if="list.length">
+        <div class="gs-card gs-product-card" v-for="p in list" :key="p.id" @click="goDetail(p.id)">
+          <img class="product-image" :src="imgSrc(p.images)" :alt="p.title">
+          <div class="product-info">
+            <div class="product-title">{{ p.title }}</div>
+            <div class="product-price">¥{{ formatMoney(p.price) }}</div>
+            <div class="product-tags">
+              <el-tag v-if="p.brand" size="mini" effect="plain">{{ p.brand }}</el-tag>
+              <el-tag v-if="p.size" size="mini" effect="plain">{{ p.size }}</el-tag>
+              <el-tag size="mini" effect="plain">成色：{{ conditionText(p.condition) }}</el-tag>
+            </div>
+            <div class="fav-row">
+              <el-button type="text" size="mini" icon="el-icon-star-off" @click.stop="cancelFav(p)">取消收藏</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fav-empty" v-else-if="!loading">
+        <el-empty description="还没有收藏,去逛逛吧">
+          <el-button type="primary" round icon="el-icon-shopping-bag-1" @click="goHome">去逛逛</el-button>
+        </el-empty>
+      </div>
+    </div>
+  </div>
+  <script>document.write(footerHTML())</script>
+</div>
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+
+
+<script>
+if (!isLoggedIn()) { location.href = 'login.html' }
+
+Vue.use(ELEMENT); registerPageUtilities()
+
+new Vue({
+  el: '#app',
+  data() {
+    return {
+      loading: false,
+      list: []
+    }
+  },
+  methods: {
+    navCmd,
+    imgSrc,
+    goHome() { location.href = 'index.html' },
+    goDetail(id) { location.href = 'product-detail.html?id=' + id },
+    conditionText(c) { return CONDITION_MAP[c] || '-' },
+    loadList() {
+      this.loading = true
+      request.get('/favorite/my').then(res => { this.list = res.data || [] })
+        .catch(() => {})
+        .then(() => { this.loading = false })
+    },
+    cancelFav(p) {
+      this.$confirm('确定取消收藏「' + p.title + '」吗？', '提示', { type: 'warning' }).then(() => {
+        request.delete('/favorite/' + p.id).then(() => {
+          msgSuccess('已取消收藏')
+          this.loadList()
+        }).catch(() => {})
+      }).catch(() => {})
+    }
+  },
+  mounted() {
+    if (isLoggedIn()) this.loadList()
+  }
+})
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>收货地址 - 粉系衣橱</title>
+<link rel="stylesheet" href="lib/element-ui/index.css">
+<link rel="stylesheet" href="css/style.css">
+<!-- common.js 必须在 <head> 最前加载，navbarHTML/footerHTML 在 body 开头就会用到 -->
+<script src="lib/axios.min.js"></script>
+<script src="js/common.js"></script>
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+<script>Vue.use(ELEMENT); registerPageUtilities()</script>
+<style>
+  .page-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 18px; }
+  .page-title { font-size: 20px; font-weight: bold; color: var(--pink-dark); }
+  .addr-item { padding: 18px 24px; margin-bottom: 16px; }
+  .addr-head { display: flex; align-items: center; justify-content: space-between; }
+  .addr-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .addr-name { font-size: 16px; font-weight: bold; color: #333; }
+  .addr-phone { color: #888; font-size: 14px; }
+  .default-tag { background: var(--pink); border-color: var(--pink); color: #fff; }
+  .addr-detail { margin-top: 10px; color: #666; font-size: 14px; line-height: 1.6; }
+  .region-row { display: flex; gap: 10px; }
+  .region-row .el-input { flex: 1; }
+  .switch-tip { margin-left: 10px; color: #999; font-size: 13px; }
+  .empty-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(240,98,146,.08); padding: 40px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+  <div class="gs-container">
+    <div class="page-head">
+      <div class="page-title">📍 收货地址</div>
+      <el-button type="primary" round icon="el-icon-plus" @click="openAdd">新增地址</el-button>
+    </div>
+
+    <div v-loading="loading">
+      <div v-if="list.length">
+        <div class="gs-card addr-item" v-for="a in list" :key="a.id">
+          <div class="addr-head">
+            <div class="addr-left">
+              <span class="addr-name">{{ a.receiverName }}</span>
+              <span class="addr-phone">{{ a.receiverPhone }}</span>
+              <el-tag v-if="a.isDefault == 1" size="mini" class="default-tag">默认</el-tag>
+            </div>
+            <div class="addr-ops">
+              <el-button v-if="a.isDefault != 1" type="text" size="small" @click="setDefault(a)">设为默认</el-button>
+              <el-button type="text" size="small" @click="openEdit(a)">编辑</el-button>
+              <el-button type="text" size="small" @click="delAddr(a)">删除</el-button>
+            </div>
+          </div>
+          <div class="addr-detail">📮 {{ a.province }}{{ a.city }}{{ a.district }} {{ a.detail }}</div>
+        </div>
+      </div>
+      <div class="empty-card" v-else-if="!loading">
+        <el-empty description="还没有收货地址，快去添加吧"></el-empty>
+      </div>
+    </div>
+
+    <!-- 新增/编辑地址弹窗 -->
+    <el-dialog :title="form.id ? '编辑地址' : '新增地址'" :visible.sync="dialogVisible" width="520px">
+      <el-form :model="form" :rules="rules" ref="addrForm" label-width="90px">
+        <el-form-item label="收件人" prop="receiverName">
+          <el-input v-model="form.receiverName" maxlength="20" placeholder="请输入收件人姓名"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号" prop="receiverPhone">
+          <el-input v-model="form.receiverPhone" maxlength="11" placeholder="请输入11位手机号"></el-input>
+        </el-form-item>
+        <el-form-item label="所在地区">
+          <div class="region-row">
+            <el-input v-model="form.province" placeholder="省"></el-input>
+            <el-input v-model="form.city" placeholder="市"></el-input>
+            <el-input v-model="form.district" placeholder="区"></el-input>
+          </div>
+        </el-form-item>
+        <el-form-item label="详细地址" prop="detail">
+          <el-input type="textarea" :rows="2" maxlength="100" v-model="form.detail" placeholder="街道、门牌号等"></el-input>
+        </el-form-item>
+        <el-form-item label="默认地址">
+          <el-switch v-model="form.isDefault"></el-switch>
+          <span class="switch-tip">设为默认地址</span>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="dialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="saving" @click="save">保 存</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script>document.write(footerHTML())</script>
+</div>
+<script>
+if (!isLoggedIn()) { location.href = 'login.html' }
+
+new Vue({
+  el: '#app',
+  data() {
+    return {
+      loading: false,
+      saving: false,
+      dialogVisible: false,
+      list: [],
+      form: { id: null, receiverName: '', receiverPhone: '', province: '', city: '', district: '', detail: '', isDefault: false },
+      rules: {
+        receiverName: [{ required: true, message: '请输入收件人姓名', trigger: 'blur' }],
+        receiverPhone: [
+          { required: true, message: '请输入手机号', trigger: 'blur' },
+          { pattern: /^1\d{10}$/, message: '手机号格式不正确', trigger: 'blur' }
+        ],
+        detail: [{ required: true, message: '请输入详细地址', trigger: 'blur' }]
+      }
+    }
+  },
+  methods: {
+    navCmd,
+    loadList() {
+      this.loading = true
+      request.get('/address/list').then(res => { this.list = res.data || [] })
+        .catch(() => {})
+        .then(() => { this.loading = false })
+    },
+    openAdd() {
+      this.form = { id: null, receiverName: '', receiverPhone: '', province: '', city: '', district: '', detail: '', isDefault: false }
+      this.dialogVisible = true
+      this.$nextTick(() => { this.$refs.addrForm && this.$refs.addrForm.clearValidate() })
+    },
+    openEdit(a) {
+      this.form = {
+        id: a.id,
+        receiverName: a.receiverName,
+        receiverPhone: a.receiverPhone,
+        province: a.province,
+        city: a.city,
+        district: a.district,
+        detail: a.detail,
+        isDefault: a.isDefault == 1
+      }
+      this.dialogVisible = true
+      this.$nextTick(() => { this.$refs.addrForm && this.$refs.addrForm.clearValidate() })
+    },
+    save() {
+      this.$refs.addrForm.validate(valid => {
+        if (!valid) return
+        this.saving = true
+        const payload = {
+          receiverName: this.form.receiverName,
+          receiverPhone: this.form.receiverPhone,
+          province: this.form.province,
+          city: this.form.city,
+          district: this.form.district,
+          detail: this.form.detail,
+          isDefault: this.form.isDefault ? 1 : 0
+        }
+        if (this.form.id) payload.id = this.form.id
+        const req = this.form.id ? request.put('/address/' + this.form.id, payload) : request.post('/address', payload)
+        req.then(() => {
+          this.saving = false
+          this.dialogVisible = false
+          msgSuccess('保存成功')
+          this.loadList()
+        }).catch(() => { this.saving = false })
+      })
+    },
+    setDefault(a) {
+      request.put('/address/default/' + a.id).then(() => {
+        msgSuccess('已设为默认地址')
+        this.loadList()
+      }).catch(() => {})
+    },
+    delAddr(a) {
+      this.$confirm('确定删除该收货地址吗？', '提示', { type: 'warning' }).then(() => {
+        request.delete('/address/' + a.id).then(() => {
+          msgSuccess('删除成功')
+          this.loadList()
+        }).catch(() => {})
+      }).catch(() => {})
+    }
+  },
+  mounted() {
+    if (isLoggedIn()) this.loadList()
+  }
+})
+</script>
+</body>
+</html>

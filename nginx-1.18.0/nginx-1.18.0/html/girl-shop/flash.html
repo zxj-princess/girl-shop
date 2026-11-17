@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>捡漏专区 - 粉系衣橱</title>
+  <link rel="stylesheet" href="lib/element-ui/index.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .flash-hero { 
+      text-align: center; padding: 48px 20px;
+      background: linear-gradient(135deg, #ffe4ec 0%, #ffd1e1 50%, #ffc2d6 100%);
+      border-radius: 20px; margin: 16px 0 8px;
+    }
+    .flash-hero h1 { 
+      font-size: 40px; letter-spacing: 4px; color: var(--pink-dark); 
+      text-shadow: 0 2px 6px rgba(236,64,122,.18);
+    }
+    .flash-hero p { margin-top: 10px; font-size: 16px; color: #c2185b; opacity: .9; }
+    .flash-grid { grid-template-columns: repeat(3, 1fr); margin-top: 24px; }
+    @media (max-width: 992px) { .flash-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px) { .flash-grid { grid-template-columns: 1fr; } }
+    .grid-wrap { min-height: 320px; padding-bottom: 20px; }
+    .flash-card { position: relative; }
+    .flash-card .img-wrap { position: relative; }
+    .flash-card .badge { position: absolute; top: 10px; left: 10px; background: linear-gradient(135deg, var(--pink), var(--pink-dark)); color: #fff; font-size: 12px; padding: 3px 10px; border-radius: 12px; box-shadow: 0 2px 6px rgba(236,64,122,.35); z-index: 1; }
+    .price-row { margin-top: 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .flash-price { color: #e06c9a; font-size: 24px; font-weight: bold; }
+    .flash-price .unit { font-size: 14px; }
+    .origin-price { color: #bbb; font-size: 13px; text-decoration: line-through; }
+    .stock-line { font-size: 13px; color: #888; margin-top: 6px; }
+    .stock-line b { color: var(--pink-dark); }
+    .stock-line .sold-out { color: #f56c6c; font-weight: bold; }
+    .count-line { font-size: 13px; color: var(--pink); margin-top: 4px; font-family: Consolas, monospace; font-weight: bold; }
+    /* 地址弹窗样式（与 product-detail 保持一致）*/
+    .addr-list { max-height: 300px; overflow-y: auto; }
+    .addr-item { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px;
+                 cursor: pointer; transition: all 0.2s; }
+    .addr-item:hover { border-color: var(--pink); background: #fff7f9; }
+    .addr-item.active { border-color: var(--pink-dark); background: #fff0f5; box-shadow: 0 2px 8px rgba(248,187,208,0.3); }
+    .addr-detail { font-size: 13px; color: #888; margin-top: 4px; padding-left: 28px; }
+  </style>
+  <!-- axios/common 须先于 #app 内 document.write(navbarHTML()) 加载，故置于 head -->
+  
+  
+<script src="lib/axios.min.js"></script>
+<script src="js/common.js"></script>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+  <div class="gs-header-gradient flash-hero">
+    <h1>⚡ 限量捡漏</h1>
+    <p>手快有手慢无 · 温柔价格只留给手快的你，错过再等一年～</p>
+  </div>
+  <div class="gs-container">
+    <div class="grid-wrap" v-loading="loading">
+      <div class="gs-product-grid flash-grid" v-if="products.length">
+        <div class="gs-product-card gs-card flash-card" v-for="p in products" :key="p.id">
+          <div class="img-wrap">
+            <img class="product-image" :src="imgSrc(p.images)" :alt="p.title" @click="goDetail(p.id)">
+            <span class="badge">限量捡漏</span>
+          </div>
+          <div class="product-info">
+            <div class="product-title" @click="goDetail(p.id)">{{ p.title }}</div>
+            <div class="price-row">
+              <span class="flash-price"><span class="unit">¥</span>{{ formatMoney(p.flashPrice) }}</span>
+              <span class="origin-price">原价 ¥{{ formatMoney(p.price) }}</span>
+            </div>
+            <div class="stock-line">
+              <template v-if="stockOf(p) > 0">仅剩 <b>{{ stockOf(p) }}</b> 件</template>
+              <span v-else class="sold-out">😭 已抢光</span>
+            </div>
+            <div class="count-line"><i class="el-icon-timer"></i> {{ countdownText(p) }}</div>
+            <el-button type="primary" round style="width:100%;margin-top:10px;"
+              :disabled="stockOf(p) <= 0 || !isStarted(p) || isEnded(p)"
+              :loading="buyingId === p.id"
+              @click="buy(p)">
+              {{ stockOf(p) <= 0 ? '已抢光' : (!isStarted(p) ? '即将开始' : (isEnded(p) ? '已结束' : '⚡ 立即捡漏')) }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else-if="!loading" description="暂时没有捡漏商品，稍后再来看看吧～"></el-empty>
+    </div>
+  </div>
+  <script>document.write(footerHTML())</script>
+  <!-- 选择收货地址弹窗 -->
+  <el-dialog title="🛒 选择收货地址" :visible.sync="addrDialogVisible" width="520px">
+    <div class="addr-list">
+      <div class="addr-item" v-for="a in addresses" :key="a.id"
+           :class="{ active: selectedAddrId == a.id }" @click="selectedAddrId = a.id">
+        <el-radio :label="a.id" v-model="selectedAddrId">{{ a.receiverName }} {{ a.receiverPhone }}</el-radio>
+        <div class="addr-detail">
+          <el-tag size="mini" v-if="a.isDefault == 1" type="primary" effect="plain" style="margin-right:6px;">默认</el-tag>
+          {{ a.province }} {{ a.city }} {{ a.district }} {{ a.detail }}
+        </div>
+      </div>
+    </div>
+    <div slot="footer">
+      <el-button @click="addrDialogVisible = false">取 消</el-button>
+      <el-button type="primary" :loading="submitting" @click="confirmBuy">⚡ 立即捡漏</el-button>
+    </div>
+  </el-dialog>
+</div>
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+<script>
+Vue.use(ELEMENT); registerPageUtilities()
+new Vue({
+  el: '#app',
+  data() {
+    return {
+      products: [],
+      loading: false,
+      now: Date.now(),
+      timer: null,
+      buyingId: null,
+      submitting: false,
+      // 地址弹窗相关
+      addrDialogVisible: false,
+      addresses: [],
+      selectedAddrId: null,
+      currentProduct: null
+    }
+  },
+  methods: {
+    navCmd,
+    imgSrc,
+    toTime(v) {
+      if (v === null || v === undefined || v === '') return 0
+      if (typeof v === 'number') return v
+      return new Date(String(v).replace(/-/g, '/')).getTime() || 0
+    },
+    stockOf(p) {
+      const s = (p.flashStock !== undefined && p.flashStock !== null) ? p.flashStock : p.stock
+      return Number(s) || 0
+    },
+    isStarted(p) { return this.now >= this.toTime(p.flashBeginTime) },
+    isEnded(p) { const end = this.toTime(p.flashEndTime); return end > 0 && this.now >= end },
+    countdownText(p) {
+      const begin = this.toTime(p.flashBeginTime)
+      const end = this.toTime(p.flashEndTime)
+      if (end > 0 && this.now >= end) return '已结束'
+      if (this.now < begin) return '即将开始'
+      if (end <= 0) return '进行中'
+      const diff = end - this.now
+      const pad = function (n) { return String(n).padStart(2, '0') }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      return pad(h) + ':' + pad(m) + ':' + pad(s) + ' 后结束'
+    },
+    goDetail(id) { location.href = 'product-detail.html?id=' + id },
+    async loadFlash() {
+      this.loading = true
+      try {
+        const res = await request.get('/product/flash')
+        this.products = res.data || []
+      } catch (e) { console.error(e) } finally { this.loading = false }
+    },
+    // 点击立即捡漏 → 弹地址选择弹窗
+    async buy(p) {
+      if (!isLoggedIn()) { msgError('请先登录'); location.href = 'login.html'; return }
+      if (this.stockOf(p) <= 0) { msgError('手慢一步，已被抢光啦'); return }
+      this.currentProduct = p
+      // 加载地址
+      try {
+        const res = await request.get('/address/list')
+        this.addresses = res.data || []
+      } catch (e) { console.error(e) }
+      if (!this.addresses.length) {
+        this.$confirm('您还没有收货地址，是否前往添加？', '提示', {
+          confirmButtonText: '去添加', cancelButtonText: '取消', type: 'warning'
+        }).then(() => { location.href = 'address.html' }).catch(() => {})
+        return
+      }
+      const def = this.addresses.find(a => a.isDefault == 1) || this.addresses[0]
+      this.selectedAddrId = def.id
+      this.addrDialogVisible = true
+    },
+    // 地址弹窗确认 → 提交捡漏订单
+    async confirmBuy() {
+      if (!this.selectedAddrId) { msgError('请选择收货地址'); return }
+      if (!this.currentProduct) return
+      this.submitting = true
+      try {
+        const res = await request.post('/order/flash/' + this.currentProduct.id + '?addressId=' + this.selectedAddrId)
+        const requestId = res.data
+        msgSuccess('请求已提交，正在创建订单')
+        const orderId = await waitFlashOrder(requestId)
+        this.addrDialogVisible = false
+        msgSuccess('捡漏成功！')
+        // 支付确认
+        try {
+          await this.$confirm('是否立即支付？', '支付确认', {
+            confirmButtonText: '立即支付', cancelButtonText: '稍后支付', type: 'success'
+          })
+          await request.post('/order/' + orderId + '/pay')
+          msgSuccess('支付成功')
+        } catch (e) { /* 取消支付 */ }
+        setTimeout(() => { location.href = 'mine.html#orders' }, 600)
+      } catch (e) { console.error(e) } finally { this.submitting = false }
+    }
+  },
+  mounted() {
+    this.loadFlash()
+    const self = this
+    this.timer = setInterval(function () { self.now = Date.now() }, 1000)
+    window.__flashTimer = this.timer
+  },
+  beforeDestroy() {
+    if (this.timer) clearInterval(this.timer)
+  }
+})
+window.addEventListener('beforeunload', function () {
+  if (window.__flashTimer) clearInterval(window.__flashTimer)
+})
+</script>
+</body>
+</html>

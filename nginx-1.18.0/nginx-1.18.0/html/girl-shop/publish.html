@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>发布商品 - 粉系衣橱</title>
+  <link rel="stylesheet" href="lib/element-ui/index.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .publish-wrap { max-width: 700px; margin: 24px auto 40px; }
+    .publish-card { padding: 30px 34px; }
+    .publish-title { font-size: 22px; font-weight: bold; color: var(--pink-dark); text-align: center; margin-bottom: 6px; }
+    .publish-sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 24px; }
+    .upload-tip { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.6; }
+    .flash-block { background: var(--pink-white); border: 1px dashed var(--pink-light); border-radius: 12px; padding: 16px 18px; margin-top: 6px; }
+    .flash-block .flash-title { font-weight: bold; color: var(--pink-dark); margin-bottom: 14px; font-size: 14px; }
+    .submit-row { text-align: center; margin-top: 10px; }
+    .submit-row .el-button { width: 220px; }
+    .avatar-uploader .el-upload--picture-card { width: 100px; height: 100px; line-height: 104px; }
+    .avatar-uploader .el-upload-list--picture-card .el-upload-list__item { width: 100px; height: 100px; }
+  </style>
+<script src="lib/axios.min.js"></script>
+<script src="js/common.js"></script>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+
+  <div class="gs-container">
+    <div class="publish-wrap">
+      <div class="gs-card publish-card" v-loading="submitting">
+        <div class="publish-title" v-loading="editLoading">{{ editId ? '编辑商品' : '发布闲置好物' }}</div>
+        <div class="publish-sub">让闲置的美丽流转起来吧～</div>
+
+        <el-alert v-if="editError" title="商品或草稿加载失败" type="error" :closable="false"><el-button @click="editId ? loadEditingProduct() : loadDraft()">重试</el-button></el-alert><el-form ref="form" :model="form" :rules="rules" label-width="90px">
+          <el-form-item label="商品标题" prop="title">
+            <el-input v-model="form.title" maxlength="50" show-word-limit placeholder="例如：ONLY 粉色针织连衣裙 九成新"></el-input>
+          </el-form-item>
+
+          <el-form-item label="商品价格" prop="price">
+            <el-input-number v-model="form.price" :precision="2" :min="0" :step="1" controls-position="right" style="width:200px;"></el-input-number>
+            <span style="color:#999;font-size:13px;margin-left:10px;">元</span>
+          </el-form-item>
+
+          <el-form-item label="原价">
+            <el-input-number v-model="form.originalPrice" :precision="2" :min="0" :step="1" controls-position="right" placeholder="选填" style="width:200px;"></el-input-number>
+            <span style="color:#999;font-size:13px;margin-left:10px;">元（选填）</span>
+          </el-form-item>
+
+          <el-form-item label="分类" prop="categoryId">
+            <el-select v-model="form.categoryId" placeholder="请选择分类" style="width:200px;">
+              <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="品牌">
+            <el-input v-model="form.brand" maxlength="30" placeholder="选填，例如：优衣库 / ZARA" style="width:200px;"></el-input>
+          </el-form-item>
+
+          <el-form-item label="尺码">
+            <el-select v-model="form.size" placeholder="选填" clearable style="width:200px;">
+              <el-option v-for="s in sizes" :key="s" :label="s" :value="s"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="成色">
+            <el-select v-model="form.condition" placeholder="请选择成色" style="width:200px;">
+              <el-option v-for="(name, key) in conditionMap" :key="key" :label="name" :value="Number(key)"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="实测信息"><el-input v-model="form.measurements" type="textarea" maxlength="500" show-word-limit placeholder="例如：衣长62cm、胸围96cm；请说明平铺或围度，手工测量存在误差"></el-input></el-form-item>
+          <el-form-item label="瑕疵说明"><el-input v-model="form.defects" type="textarea" maxlength="500" show-word-limit placeholder="请说明起球、污渍、破损等情况，并在商品图片中上传细节照片；无已知瑕疵也请如实说明"></el-input></el-form-item>
+          <el-form-item label="商品描述" prop="description">
+            <el-input v-model="form.description" type="textarea" :rows="5" maxlength="500" show-word-limit
+                      placeholder="请描述面料材质、尺码建议、购买渠道、瑕疵说明等（必填）"></el-input>
+          </el-form-item>
+
+          <el-form-item label="商品图片">
+            <el-upload
+              ref="upload"
+              class="avatar-uploader"
+              action="/api/upload/product"
+              name="files"
+              list-type="picture-card"
+              accept="image/*"
+              multiple
+              :limit="5"
+              :headers="uploadHeaders"
+              :file-list="imageFiles"
+              :on-success="handleUploadSuccess"
+              :on-error="handleUploadError"
+              :on-remove="handleUploadRemove"
+              :on-exceed="handleExceed">
+              <i class="el-icon-plus"></i>
+            </el-upload>
+            <div class="upload-tip">最多上传 5 张图片，支持多选，第一张将作为封面展示</div>
+          </el-form-item>
+
+          <el-form-item label="限量捡漏" v-if="!aiDraft">
+            <el-switch :disabled="!!editId && !flashAllowed" v-model="flashOpen" active-color="#f06292"></el-switch>
+            <span style="color:#999;font-size:13px;margin-left:10px;">同时设为限量捡漏商品</span>
+          </el-form-item>
+
+          <p v-if="editId && !flashAllowed" role="status">{{flashReason}}</p><div class="flash-block" :style="editId&&!flashAllowed?'filter:grayscale(1);opacity:.65':''" v-if="flashOpen">
+            <div class="flash-title">⚡ 捡漏设置</div>
+            <el-form-item label="捡漏价" :rules="[{ required: true, message: '请输入捡漏价', trigger: 'blur' }]">
+              <el-input-number :disabled="!!editId && !flashAllowed" v-model="flash.flashPrice" :precision="2" :min="0.01" :step="1" controls-position="right" style="width:200px;"></el-input-number>
+              <span style="color:#999;font-size:13px;margin-left:10px;">元</span>
+            </el-form-item>
+            <el-form-item label="捡漏库存">
+              <el-input-number :disabled="!!editId && !flashAllowed" v-model="flash.stock" :min="1" :precision="0" :step="1" controls-position="right" style="width:200px;"></el-input-number>
+              <span style="color:#999;font-size:13px;margin-left:10px;">件</span>
+            </el-form-item>
+            <el-form-item label="开始时间">
+              <el-date-picker :disabled="!!editId && !flashAllowed" v-model="flash.beginTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss"
+                              placeholder="选择开始时间" style="width:200px;"></el-date-picker>
+            </el-form-item>
+            <el-form-item label="结束时间">
+              <el-date-picker :disabled="!!editId && !flashAllowed" v-model="flash.endTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss"
+                              placeholder="选择结束时间" style="width:200px;"></el-date-picker>
+            </el-form-item>
+          </div>
+
+          <div class="submit-row"><el-button v-if="draftId" :disabled="submitting" @click="previewDraft">保存并预览</el-button>
+            <el-button v-if="!editId" round :loading="!!pendingActions.draft" :disabled="editLoading || editError" @click="saveDraft">保存草稿</el-button>
+            <a :href="'trade.html'+(draftId?'?draftFocus='+encodeURIComponent(draftId):'')+'#drafts'" style="margin:0 12px">草稿箱</a>
+            <el-button type="primary" round :loading="submitting || !!pendingActions.publish" :disabled="editLoading || editError" @click="submit">{{ editId ? '保存修改' : aiDraft ? '保存并预览' : '发布商品' }}</el-button>
+          </div>
+        </el-form>
+      </div>
+    </div>
+  </div>
+
+  <script>document.write(footerHTML())</script>
+</div>
+
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+
+
+<script>
+  Vue.use(ELEMENT); registerPageUtilities()
+
+  new Vue({
+    el: '#app',
+    data() {
+      return {
+        categories: [],
+        aiDraft:false,aiSourceText:'',imageFiles: [],dirty:false,saved:false,editLoading:false,editError:false,
+        editId:new URLSearchParams(location.search).get('edit'),
+        draftId:new URLSearchParams(location.search).get('draft'),
+        sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '均码'],
+        conditionMap: CONDITION_MAP,
+        form: {
+          title: '',
+          price: undefined,
+          originalPrice: undefined,
+          categoryId: null,
+          brand: '',
+          size: '',
+          measurements: '',
+          defects: '',
+          condition: 1,
+          description: '',
+          images: []
+        },
+        rules: {
+          title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
+          price: [{ required: true, type: 'number', message: '请输入商品价格', trigger: 'blur' }],
+          categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
+          description: [{ required: true, message: '请填写商品描述', trigger: 'blur' }]
+        },
+        flashAllowed:false,flashReason:'正在检查捡漏设置权限',flashOpen: false,
+        flash: {
+          flashPrice: undefined,
+          stock: 1,
+          beginTime: '',
+          endTime: ''
+        },
+        submitting: false
+      }
+    },
+    watch:{form:{deep:true,handler(){if(!this.editLoading)this.dirty=true}}},
+    beforeDestroy(){window.removeEventListener('beforeunload',this.leaveHandler)},
+    computed: {
+      uploadHeaders() {
+        return { authorization: getToken() }
+      }
+    },
+    mounted() {
+      if (!isLoggedIn()) { location.href = 'login.html'; return }
+      this.leaveHandler=e=>{if(this.dirty&&!this.saved){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',this.leaveHandler)
+      this.loadCategories()
+      if(this.editId) this.loadEditingProduct()
+      else if(this.draftId) this.loadDraft()
+    },
+    methods: {
+      navCmd,
+      async loadDraft() {
+        this.editLoading=true;this.editError=false
+        try {
+          const r=await request.get('/trade/drafts/'+encodeURIComponent(this.draftId));const p=JSON.parse(r.data.payload)
+          this.aiDraft=!!p.aiSourceText;this.aiSourceText=p.aiSourceText||'';if(this.aiDraft){this.form.condition=p.condition==null?null:p.condition;this.form.categoryId=p.categoryId||null;this.form.price=p.price==null?undefined:p.price}
+          for(const key of Object.keys(this.form))if(p[key]!=null)this.form[key]=p[key]
+          this.imageFiles=(this.form.images||[]).map(url=>({name:url.split('/').pop(),url:imgSrc(url),status:'success',response:{data:[url]}}))
+          if(p.flash&&!this.aiDraft){this.flash=p.flash;this.flashOpen=!!p.flashOpen}
+        }catch(e){this.editError=true;msgError('草稿加载失败，请重试')}finally{this.$nextTick(()=>{this.editLoading=false;this.dirty=false})}
+      },
+      async previewDraft(){await this.saveDraft();if(this.draftId&&!this.dirty)location.href='listing-preview.html?draft='+encodeURIComponent(this.draftId)},
+      async saveDraft() {
+        return this.runAction('draft',async()=>{
+          try {
+            const payload={...this.form,flash:this.flash,flashOpen:this.flashOpen,aiSourceText:this.aiSourceText,aiReviewRequired:false}
+            const r=this.draftId?await request.put('/trade/drafts/'+this.draftId,payload):await request.post('/trade/drafts',payload)
+            this.draftId=String(r.data);history.replaceState(null,'','publish.html?draft='+encodeURIComponent(this.draftId));this.dirty=false;msgSuccess('草稿已保存，可从草稿箱继续编辑')
+          }catch(e){console.error(e)}
+        })
+      },
+      async loadEditingProduct() {
+        this.editLoading=true;this.editError=false
+        try {
+          const res=await request.get('/product/detail/'+encodeURIComponent(this.editId));const p=res.data
+          if(!p || String(p.userId)!==String(getUser().id)){msgError('无权编辑该商品');location.href='mine.html';return}
+          for(const key of Object.keys(this.form)) if(key!=='images' && p[key]!=null)this.form[key]=p[key]
+          this.flashOpen=Number(p.isFlash)===1;this.flash={flashPrice:p.flashPrice,stock:p.stock,beginTime:p.flashBeginTime,endTime:p.flashEndTime}
+          const permission=await request.get('/product/'+encodeURIComponent(this.editId)+'/flash-permission');this.flashAllowed=!!permission.data.allowed;this.flashReason=permission.data.reason
+          this.form.images=(p.images||'').split(',').filter(Boolean)
+          this.imageFiles=this.form.images.map(url=>({name:url.split('/').pop(),url:imgSrc(url),status:'success',response:{data:[url]}}))
+        }catch(e){this.editError=true;msgError('商品加载失败，请重试')}finally{this.$nextTick(()=>{this.editLoading=false;this.dirty=false})}
+      },
+      async loadCategories() {
+        try {
+          const res = await request.get('/category/list')
+          this.categories = res.data || []
+        } catch (e) { console.error(e) }
+      },
+      // 上传成功：res.data 是路径数组，累计追加
+      handleUploadSuccess(res, file) {
+        if (!res || res.success === false) {
+          msgError((res && res.errorMsg) || '图片上传失败')
+          this.$refs.upload && this.$refs.upload.handleRemove(file)
+          return
+        }
+        const paths = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : [])
+        if (!paths.length) { msgError('图片上传失败'); this.$refs.upload && this.$refs.upload.handleRemove(file); return }
+        this.form.images = this.form.images.concat(paths)
+      },
+      handleUploadError() {
+        msgError('图片上传失败，请重试')
+      },
+      // 移除文件：同步移除对应路径
+      handleUploadRemove(file) {
+        const paths = file && file.response && Array.isArray(file.response.data) ? file.response.data : []
+        if (paths.length) {
+          this.form.images = this.form.images.filter(p => paths.indexOf(p) === -1)
+        }
+      },
+      handleExceed() {
+        msgError('最多上传 5 张图片')
+      },
+      validateFlash() {
+        if (!this.flashOpen || (this.editId && !this.flashAllowed)) return true
+        if (this.flash.flashPrice == null || this.flash.flashPrice <= 0) { msgError('请填写正确的捡漏价'); return false }
+        if (!this.flash.stock || this.flash.stock < 1) { msgError('捡漏库存至少为 1'); return false }
+        if (!this.flash.beginTime) { msgError('请选择捡漏开始时间'); return false }
+        if (!this.flash.endTime) { msgError('请选择捡漏结束时间'); return false }
+        if (new Date(this.flash.endTime.replace(/-/g, '/')).getTime() <= new Date(this.flash.beginTime.replace(/-/g, '/')).getTime()) {
+          msgError('结束时间必须晚于开始时间'); return false
+        }
+        return true
+      },
+      async submit() {
+        return this.runAction('publish',async()=>{
+        try {
+          await this.$refs.form.validate()
+        } catch (e) { return }
+        if (!this.form.images.length) { msgError('请至少上传一张商品图片'); return }
+        if (!this.validateFlash()) return
+
+        this.submitting = true
+        try {
+          const payload = {
+            categoryId: this.form.categoryId,
+            title: this.form.title.trim(),
+            description: this.form.description.trim(),
+            brand: this.form.brand ? this.form.brand.trim() : '',
+            size: this.form.size || '',
+            condition: this.form.condition,
+            measurements: this.form.measurements.trim(),
+            defects: this.form.defects.trim(),
+            price: this.form.price,
+            images: this.form.images
+          }
+          if (this.form.originalPrice != null) payload.originalPrice = this.form.originalPrice
+          if(this.aiDraft&&this.draftId&&!this.editId){await request.put('/trade/drafts/'+this.draftId,{...payload,aiSourceText:this.aiSourceText,aiReviewRequired:false});this.saved=true;location.href='listing-preview.html?draft='+encodeURIComponent(this.draftId);return}
+          const res = this.editId ? await request.put('/product/'+this.editId,payload) : this.draftId ? (await request.put('/trade/drafts/'+this.draftId,{...payload,aiSourceText:this.aiSourceText}),await request.post('/ai/listings/drafts/'+this.draftId+'/publish',{confirmed:true})) : await request.post('/product', payload)
+          const newId = this.editId || res.data
+          if (this.flashOpen && newId && (!this.editId || this.flashAllowed)) {
+            await request.put('/product/' + newId + '/flash', {
+              stock: this.flash.stock,
+              flashPrice: this.flash.flashPrice,
+              beginTime: this.flash.beginTime,
+              endTime: this.flash.endTime
+            })
+          }
+
+          this.saved=true;msgSuccess(this.editId ? '修改成功' : '发布成功')
+          setTimeout(() => { location.href = 'mine.html#products' }, 800)
+        } catch (e) {
+          console.error(e)
+        } finally {
+          this.submitting = false
+        }
+        })
+      }
+    }
+  })
+</script>
+</body>
+</html>

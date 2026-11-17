@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的 - 粉系衣橱</title>
+<link rel="stylesheet" href="lib/element-ui/index.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* 个人信息卡片 */
+  .profile-card {
+    background: linear-gradient(135deg, #ffe4ec 0%, #ffd1e1 60%, #ffc2d6 100%);
+    border-radius: var(--radius-card);
+    padding: 24px 28px;
+    margin: 16px 0 4px;
+    display: flex; align-items: center; gap: 20px;
+    box-shadow: 0 4px 16px rgba(240,98,146,.15);
+  }
+  .profile-card .avatar-wrap { flex-shrink: 0; }
+  .profile-card .avatar-wrap .el-avatar {
+    border: 3px solid #fff; box-shadow: 0 2px 8px rgba(236,64,122,.25);
+    background: #fff; color: var(--pink-dark); font-size: 26px; font-weight: 600;
+  }
+  .profile-main { flex: 1; min-width: 0; }
+  .profile-name { font-size: 20px; font-weight: 700; color: #ad3f6d; }
+  .profile-phone { font-size: 13px; color: #c2608a; margin-top: 6px; }
+  .profile-phone i { margin-right: 4px; }
+  .profile-stats { display: flex; gap: 10px; flex-shrink: 0; }
+  .stat-box {
+    background: rgba(255,255,255,.75); border-radius: 14px;
+    padding: 10px 20px; text-align: center; cursor: pointer;
+    transition: all .2s; min-width: 86px;
+  }
+  .stat-box:hover { transform: translateY(-2px); background: #fff; box-shadow: 0 4px 12px rgba(236,64,122,.2); }
+  .stat-box.active { background: #fff; box-shadow: 0 4px 12px rgba(236,64,122,.28); }
+  .stat-num { font-size: 22px; font-weight: 700; color: var(--pink-dark); line-height: 1.2; }
+  .stat-label { font-size: 12px; color: #c2608a; margin-top: 2px; }
+
+  .order-card, .follow-card {
+    background: #fff;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .order-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--pink-bg);
+    font-size: 12px; color: var(--text-muted);
+  }
+  .order-head .status { color: var(--pink-dark); font-weight: 600; font-size: 13px; }
+  .order-body { display: flex; gap: 14px; padding: 14px; }
+  .order-body img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-btn); background: var(--pink-bg); flex-shrink: 0; cursor: pointer; }
+  .order-body .info { flex: 1; min-width: 0; }
+  .order-body .title { font-size: 14px; font-weight: 500; color: var(--text-main); cursor: pointer; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .order-body .title:hover { color: var(--pink); }
+  .order-body .meta { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+  .order-body .price { color: var(--pink-dark); font-size: 17px; font-weight: 600; margin-top: 4px; }
+  .order-body .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+  .follow-card { display: flex; align-items: center; gap: 14px; padding: 14px; }
+  .follow-card .info { flex: 1; min-width: 0; }
+  .follow-card .nick { font-size: 15px; font-weight: 600; color: var(--text-main); }
+  .follow-card .meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .follow-card .actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .tabs-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius-card); margin-top: 16px; }
+  .tabs-card > .el-tabs > .el-tabs__header { padding: 4px 24px 0; margin: 0; }
+  .tabs-card > .el-tabs > .el-tabs__header .el-tabs__item { padding: 0 16px; height: 44px; line-height: 44px; }
+  .tabs-card > .el-tabs > .el-tabs__header #tab-products { padding-left: 0; }
+  .tabs-card > .el-tabs > .el-tabs__header .el-tabs__item:last-child { padding-right: 0; }
+  .status-tabs { padding: 12px 24px 10px; border-bottom: 1px solid var(--border); }
+  .status-tabs .el-radio-button__inner { padding: 6px 14px; font-size: 13px; }
+  .tabs-card > .el-tabs > .el-tabs__header .el-tabs__item { color:var(--text-main); }
+  .status-tabs .el-radio-button { margin-right:8px; }
+  .status-tabs .el-radio-button__inner { border:0 !important;border-radius:18px !important;background:#f5f5f6;color:var(--text-sub);box-shadow:none !important;padding:8px 16px; }
+  .status-tabs .el-radio-button__orig-radio:checked + .el-radio-button__inner { background:var(--pink-lighter);color:var(--pink-dark);font-weight:600; }
+  @media(max-width:640px) { .tabs-card > .el-tabs > .el-tabs__header .el-tabs__nav-wrap { overflow-x:auto; } }
+  .tabs-content { padding: 16px 24px 24px; }
+  @media (max-width: 640px) {
+    .profile-card { flex-wrap: wrap; gap: 12px; padding: 16px; }
+    .profile-name { overflow-wrap: anywhere; }
+    .profile-stats { width: 100%; justify-content: flex-end; }
+    .follow-card { flex-wrap: wrap; }
+    .follow-card .actions { width: 100%; justify-content: flex-end; }
+    .tabs-card > .el-tabs > .el-tabs__header { padding: 8px 16px 0; }
+    .status-tabs { padding: 12px 16px; overflow-x: auto; white-space: nowrap; }
+    .tabs-content { padding: 16px; }
+  }
+  .empty-wrap { padding: 40px 20px; }
+  .pag-wrap { margin-top: 16px; text-align: center; }
+  .tab-count {
+    display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 2px;
+    background: var(--pink); color: #fff; border-radius: 9px;
+    font-size: 11px; line-height: 18px; text-align: center;
+  }
+</style>
+<link rel="stylesheet" href="css/home-mine.css">
+<script src="lib/axios.min.js"></script>
+<script src="js/common.js"></script>
+</head>
+<body class="mine-page">
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+  <header class="gs-container mine-heading"><div><span class="page-eyebrow">我的衣橱</span><h1>把喜欢的留下，让闲置流动</h1></div><nav class="mine-shortcuts" aria-label="个人服务"><a href="messages.html"><i class="el-icon-chat-dot-round" aria-hidden="true"></i> 消息中心</a><a href="trade.html#cases"><i class="el-icon-service" aria-hidden="true"></i> 售后记录</a><a href="trade.html#reports"><i class="el-icon-warning-outline" aria-hidden="true"></i> 我的举报</a></nav></header>
+  <div class="gs-container" style="padding-top: 0;">
+    <flash-requests></flash-requests>
+    <!-- 个人信息卡片 -->
+    <div class="profile-card">
+      <div class="avatar-wrap">
+        <el-avatar :size="72" :src="user.icon ? imgSrc(user.icon) : null" @error="imgError">
+          {{ (user.nickName || '粉').charAt(0) }}
+        </el-avatar>
+      </div>
+      <div class="profile-main">
+        <div class="profile-name">
+          {{ user.nickName || '粉系小主' }}
+          <el-button type="text" icon="el-icon-edit" style="color:#c2608a;font-size:13px;" @click="openEditProfile">编辑资料</el-button>
+        </div>
+        <div class="profile-phone"><i class="el-icon-mobile-phone"></i>{{ maskPhone(user.phone) }}
+          <el-button type="text" icon="el-icon-location" style="color:#c2608a;font-size:13px;margin-left:14px;" @click="location.href='address.html'">收货地址</el-button>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="stat-box" :class="{ active: activeTab === 'follows' }" @click="switchTab('follows')">
+          <div class="stat-num">{{ counts.followCount }}</div>
+          <div class="stat-label">关注</div>
+        </div>
+        <div class="stat-box" :class="{ active: activeTab === 'fans' }" @click="switchTab('fans')">
+          <div class="stat-num">{{ counts.fanCount }}</div>
+          <div class="stat-label">粉丝</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs-card">
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="我的商品" name="products">
+          <div class="goods-toolbar"><span>管理我的衣橱</span><a href="trade.html#drafts"><i class="el-icon-document" aria-hidden="true"></i> 商品草稿箱 →</a></div><div class="status-tabs"><el-radio-group v-model="goodsStatus" size="small">
+            <el-radio-button label="1">在售 {{ goods.filter(p => p.status === 1).length }}</el-radio-button><el-radio-button label="0">已下架 {{ goods.filter(p => p.status === 0).length }}</el-radio-button><el-radio-button label="2">已售出 {{ goods.filter(p => p.status === 2).length }}</el-radio-button>
+          </el-radio-group></div>
+          <div class="tabs-content" v-loading="goodsLoading">
+            <el-alert v-if="goodsError" title="商品加载失败，请刷新重试" type="error" :closable="false"></el-alert>
+            <el-empty v-else-if="!goodsLoading && filteredGoods.length === 0" description="当前分类暂无商品">
+              <el-button type="primary" @click="goPublish">发布第一件商品</el-button>
+            </el-empty>
+            <div class="my-products-grid" v-else>
+              <article class="order-card my-product" v-for="product in filteredGoods" :key="product.id">
+                <img :src="imgSrc(product.images)" :alt="product.title" @error="imgError" @click="goProduct(product.id)">
+                <div class="my-product-info"><div class="my-product-title">{{ product.title }}</div>
+                  <div class="my-product-price">¥{{ formatMoney(product.price) }}</div><div class="my-product-meta">库存 {{ product.stock }}<span>{{ STATUS_MAP[product.status] }}</span></div>
+                  <div class="my-product-actions"><el-button size="mini" @click="editGoods(product)">编辑</el-button>
+                    <el-button v-if="product.status === 1" size="mini" :loading="!!pendingActions['goods-'+product.id]" @click="toggleGoods(product,0)">下架</el-button>
+                    <el-button v-if="product.status === 0 && product.stock > 0" size="mini" type="primary" :loading="!!pendingActions['goods-'+product.id]" @click="toggleGoods(product,1)">上架</el-button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="我的订单" name="orders">
+          <div class="status-tabs">
+            <el-radio-group v-model="statusFilter" size="small">
+              <el-radio-button :label="null">全部</el-radio-button>
+              <el-radio-button :label="0">待付款</el-radio-button>
+              <el-radio-button :label="1">待发货</el-radio-button>
+              <el-radio-button :label="2">待收货</el-radio-button>
+              <el-radio-button :label="3">已完成</el-radio-button>
+              <el-radio-button :label="4">已关闭</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="tabs-content" v-loading="orderLoading">
+            <div v-if="orderError" class="empty-wrap"><p>加载失败，请重试</p><el-button @click="loadOrders">重新加载</el-button></div>
+            <div v-else-if="!orderLoading && orders.length === 0" class="empty-wrap">
+              <el-empty description="暂无订单"></el-empty>
+            </div>
+            <div class="order-card" v-for="order in orders" v-show="!orderError" :key="order.id">
+              <div class="order-head">
+                <span>订单号 {{ order.orderNo }} · {{ formatTime(order.createTime) }}</span>
+                <span class="status">{{ ORDER_STATUS_MAP[order.status] }}</span>
+              </div>
+              <div class="order-body">
+                <img :src="imgSrc(order.productImage)" @error="imgError" @click="goProduct(order.productId)">
+                <div class="info">
+                  <div class="title" @click="goProduct(order.productId)">{{ order.productTitle }}</div>
+                  <div class="meta">数量 1 · 实付</div>
+                  <div class="price">¥{{ formatMoney(order.payAmount) }}</div>
+                  <div class="actions">
+                    <el-button v-if="order.status === 0 && isBuyer(order)" type="primary" size="mini" :loading="!!pendingActions['order-'+order.id]" @click="pay(order)">立即付款</el-button>
+                    <el-button v-if="order.status === 0" size="mini" :loading="!!pendingActions['order-'+order.id]" @click="cancel(order)">{{ isBuyer(order) ? '取消订单' : '关闭订单' }}</el-button>
+                    <el-button v-if="order.status === 1 && isSeller(order)" type="primary" size="mini" :loading="!!pendingActions['order-'+order.id]" @click="ship(order)">立即发货</el-button>
+                    <el-button size="mini" @click="contactOrder(order)">{{isBuyer(order)?'联系卖家':'联系买家'}}</el-button>
+                    <el-button v-if="[1,2,3].includes(order.status)" size="mini" @click="openTradeOrders(order)">物流 / 售后</el-button>
+                    <el-button v-if="order.status === 2 && isBuyer(order)" type="primary" size="mini" :loading="!!pendingActions['order-'+order.id]" @click="receive(order)">确认收货</el-button>
+                    <buyer-review-button v-if="order.status === 3 && isBuyer(order)" :order-id="order.id" :reviewed-state="order.reviewed" :can-review-state="order.canReview" @submitted="loadOrders"></buyer-review-button>
+                    <el-button v-if="order.status === 3 || order.status === 4" size="mini" type="danger" plain :loading="!!pendingActions['order-'+order.id]" @click="removeOrder(order)">删除订单</el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pag-wrap" v-if="orderTotal > orderPageSize">
+              <el-pagination background layout="prev, pager, next" :total="orderTotal" :page-size="orderPageSize"
+                             :current-page.sync="orderPage" @current-change="loadOrders" small></el-pagination>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane name="follows">
+          <span slot="label">我的关注 <span class="tab-count">{{ counts.followCount }}</span></span>
+          <div class="tabs-content" v-loading="followLoading">
+            <div v-if="followError" class="empty-wrap"><p>加载失败，请重试</p><el-button @click="loadFollows">重新加载</el-button></div>
+            <div v-else-if="!followLoading && follows.length === 0" class="empty-wrap">
+              <el-empty description="还没有关注任何卖家，去首页逛逛吧～"></el-empty>
+            </div>
+            <div class="follow-card" v-for="f in follows" v-show="!followError" :key="f.id">
+              <el-avatar :size="44" :src="f.followIcon ? imgSrc(f.followIcon) : null">
+                {{ (f.followNickName || '卖').charAt(0) }}
+              </el-avatar>
+              <div class="info">
+                <div class="nick">{{ f.followNickName || '匿名卖家' }}</div>
+                <div class="meta">在售 {{ f.productCount || 0 }} 件商品</div>
+              </div>
+              <div class="actions">
+                <el-button size="mini" type="primary" plain @click="goProducts(f)">看商品</el-button>
+                <el-button size="mini" type="danger" plain :loading="!!pendingActions['follow-'+f.followUserId]" @click="unfollow(f)">取消关注</el-button>
+              </div>
+            </div>
+            <div class="pag-wrap" v-if="followTotal > followPageSize">
+              <el-pagination background layout="prev, pager, next" :total="followTotal" :page-size="followPageSize"
+                             :current-page.sync="followPage" @current-change="loadFollows" small></el-pagination>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane name="fans">
+          <span slot="label">我的粉丝 <span class="tab-count">{{ counts.fanCount }}</span></span>
+          <div class="tabs-content" v-loading="fanLoading">
+            <div v-if="fanError" class="empty-wrap"><p>加载失败，请重试</p><el-button @click="loadFans">重新加载</el-button></div>
+            <div v-else-if="!fanLoading && fans.length === 0" class="empty-wrap">
+              <el-empty description="还没有粉丝，发布更多好物吸引关注吧～"></el-empty>
+            </div>
+            <div class="follow-card" v-for="f in fans" v-show="!fanError" :key="f.id">
+              <el-avatar style="cursor:pointer" @click.native="goFan(f)" :size="44" :src="f.fanIcon ? imgSrc(f.fanIcon) : null">
+                {{ (f.fanNickName || '粉').charAt(0) }}
+              </el-avatar>
+              <div class="info">
+                <a class="nick" :href="'seller.html?id='+encodeURIComponent(String(f.userId))">{{ f.fanNickName || '匿名用户' }}</a>
+                <div class="meta">关注于 {{ formatTime(f.createTime) }}</div>
+              </div>
+            </div>
+            <div class="pag-wrap" v-if="fanTotal > fanPageSize">
+              <el-pagination background layout="prev, pager, next" :total="fanTotal" :page-size="fanPageSize"
+                             :current-page.sync="fanPage" @current-change="loadFans" small></el-pagination>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+
+    <!-- 编辑资料弹窗 -->
+    <el-dialog title="编辑资料" :visible.sync="profileDialog" width="420px">
+      <el-form :model="profileForm" label-width="80px">
+        <el-form-item label="昵称">
+          <el-input v-model="profileForm.nickName" maxlength="16" show-word-limit placeholder="请输入新昵称"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input :value="maskPhone(user.phone)" disabled></el-input>
+          <div style="color:#bbb;font-size:12px;">手机号为账号凭证，暂不支持修改</div>
+        </el-form-item>
+        <el-form-item label="收货地址">
+          <el-button type="primary" plain size="small" @click="location.href='address.html'">前往管理收货地址</el-button>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="profileDialog = false">取 消</el-button>
+        <el-button type="primary" :loading="savingProfile" @click="saveProfile">保 存</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script>document.write(footerHTML())</script>
+</div>
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+<script>
+if (!isLoggedIn()) { location.href = 'login.html' }
+Vue.use(ELEMENT); registerPageUtilities(); registerFlashRequests(); registerBuyerReviews()
+
+new Vue({
+  el: '#app',
+  data() {
+    const saved=readViewState('mine')
+    return {
+      user: {},
+      STATUS_MAP, ORDER_STATUS_MAP,
+      counts: { followCount: 0, fanCount: 0 },
+      activeTab: ['products','orders','follows','fans'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'products',
+      requestTokens:{orders:0,follows:0,fans:0},goods: [],goodsStatus:['0','1','2'].includes(saved.goodsStatus)?saved.goodsStatus:'1',goodsLoading:false,goodsError:false,
+      // 编辑资料弹窗
+      profileDialog: false,
+      savingProfile: false,
+      profileForm: { nickName: '' },
+      orderError:false, followError:false, fanError:false,orderLoading: false, orders: [], orderTotal: 0, orderPage: Math.max(1,Number(saved.orderPage)||1), orderPageSize: 10, statusFilter: [0,1,2,3,4].includes(saved.statusFilter)?saved.statusFilter:null,
+      followLoading: false, follows: [], followTotal: 0, followPage: Math.max(1,Number(saved.followPage)||1), followPageSize: 10,
+      fanLoading: false, fans: [], fanTotal: 0, fanPage: Math.max(1,Number(saved.fanPage)||1), fanPageSize: 10
+    }
+  },
+  computed: {
+    filteredGoods() { return this.goods.filter(p => String(p.status) === this.goodsStatus) }
+  },
+  watch: {
+    activeTab() { history.replaceState(null,'',location.pathname+location.search+'#'+this.activeTab);this.onTabClick() },
+    statusFilter() { this.orderPage = 1; this.loadOrders() }
+  },
+  mounted() {
+    this.loadProfile()
+    this.loadCounts()
+    Promise.resolve(this.onTabClick()).finally(()=>{const saved=readViewState('mine');if(saved.scroll)this.$nextTick(()=>window.scrollTo(0,saved.scroll))})
+  },
+  methods: {
+    goPublish,
+    async loadGoods() {
+      this.goodsLoading=true;this.goodsError=false
+      try { const res=await request.get('/product/my');this.goods=res.data||[] }
+      catch(e) { this.goodsError=true }
+      finally { this.goodsLoading=false }
+    },
+    editGoods(product) { this.saveView();location.href='publish.html?edit='+encodeURIComponent(String(product.id)) },
+    async toggleGoods(product,status) {
+      return this.runAction('goods-'+product.id,async()=>{
+      try { await this.$confirm(status===0?'确定下架该商品？':'确定上架该商品？','商品管理');await request.put('/product/'+product.id+'/status',{},{params:{status}});await this.loadGoods() }
+      catch(e) { if(e!=='cancel' && e!=='close') console.error(e) }
+
+      })
+    },
+    navCmd, imgSrc, imgError,
+    maskPhone(phone) {
+      if (!phone) return '未绑定手机号'
+      // 手机号脱敏：138****8000
+      return String(phone).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+    },
+    async loadProfile() {
+      try {
+        const res = await request.get('/user/me')
+        this.user = res.data || {}
+      } catch (e) { console.error(e) }
+    },
+    async loadCounts() {
+      try {
+        const res = await request.get('/follow/counts')
+        this.counts = res.data || { followCount: 0, fanCount: 0 }
+      } catch (e) { console.error(e) }
+    },
+    switchTab(name) {
+      this.activeTab = name
+    },
+    onTabClick() {
+      if (this.activeTab === 'products') return this.loadGoods()
+      else if (this.activeTab === 'orders') return this.loadOrders()
+      else if (this.activeTab === 'follows') return this.loadFollows()
+      else if (this.activeTab === 'fans') return this.loadFans()
+    },
+    async loadOrders() {
+      const seq=++this.requestTokens.orders
+      this.orderLoading = true
+      this.orderError = false
+      try {
+        const params = { page: this.orderPage, pageSize: this.orderPageSize }
+        if (this.statusFilter !== null && this.statusFilter !== undefined) params.status = this.statusFilter
+        const res = await request.get('/order/my', { params })
+        if(seq!==this.requestTokens.orders)return
+        this.orders = res.data || []
+        this.orderTotal = Number(res.total || 0)
+        const last=Math.max(1,Math.ceil(Number(this.orderTotal)/this.orderPageSize))
+        if(this.orderPage>last){this.orderPage=last;return await this.loadOrders()}
+      } catch (e) { if(seq===this.requestTokens.orders)this.orderError=true } finally { if(seq===this.requestTokens.orders)this.orderLoading = false }
+    },
+    async loadFollows() {
+      const seq=++this.requestTokens.follows
+      this.followLoading = true
+      this.followError = false
+      try {
+        const res = await request.get('/follow/my', { params: { page: this.followPage, pageSize: this.followPageSize } })
+        if(seq!==this.requestTokens.follows)return
+        this.follows = res.data || []
+        this.followTotal = Number(res.total || 0)
+        const last=Math.max(1,Math.ceil(Number(this.followTotal)/this.followPageSize))
+        if(this.followPage>last){this.followPage=last;return await this.loadFollows()}
+        this.counts.followCount = Number(this.followTotal)
+      } catch (e) { if(seq===this.requestTokens.follows)this.followError=true } finally { if(seq===this.requestTokens.follows)this.followLoading = false }
+    },
+    async loadFans() {
+      const seq=++this.requestTokens.fans
+      this.fanLoading = true
+      this.fanError = false
+      try {
+        const res = await request.get('/follow/fans', { params: { page: this.fanPage, pageSize: this.fanPageSize } })
+        if(seq!==this.requestTokens.fans)return
+        this.fans = res.data || []
+        this.fanTotal = Number(res.total || 0)
+        const last=Math.max(1,Math.ceil(Number(this.fanTotal)/this.fanPageSize))
+        if(this.fanPage>last){this.fanPage=last;return await this.loadFans()}
+        this.counts.fanCount = Number(this.fanTotal)
+      } catch (e) { if(seq===this.requestTokens.fans)this.fanError=true } finally { if(seq===this.requestTokens.fans)this.fanLoading = false }
+    },
+    isSeller(order) { const u = getUser(); return !!(u && u.id && String(order.sellerId) === String(u.id)) },
+    isBuyer(order) { const u = getUser(); return !!(u && u.id && String(order.buyerId) === String(u.id)) },
+    openEditProfile() {
+      this.profileForm.nickName = this.user.nickName || ''
+      this.profileDialog = true
+    },
+    async saveProfile() {
+      const nick = (this.profileForm.nickName || '').trim()
+      if (!nick) { msgError('昵称不能为空'); return }
+      this.savingProfile = true
+      try {
+        await request.put('/user/nickname?nickName=' + encodeURIComponent(nick))
+        msgSuccess('资料已更新')
+        this.profileDialog = false
+        // 刷新页面个人信息 + 同步本地 sessionStorage 中的昵称（导航栏立即生效）
+        await this.loadProfile()
+        const local = getUser()
+        local.nickName = nick
+        sessionStorage.setItem('user', JSON.stringify(local))
+      } catch (e) { console.error(e) } finally { this.savingProfile = false }
+    },
+    async removeOrder(order) {
+      return this.runAction('order-'+order.id,async()=>{
+      try {
+        await this.$confirm('隐藏这条订单？对方的记录仍会保留', '提示', { type: 'warning' })
+        await request.delete('/order/' + order.id)
+        msgSuccess('订单已删除')
+        this.loadOrders()
+      } catch (e) { if (e !== 'cancel' && e !== 'close') console.error(e) }
+
+      })
+    },
+    goFan(f){location.href='seller.html?id='+encodeURIComponent(String(f.userId))},
+    saveView(){sessionStorage.setItem('shop:view:mine:'+String(getUser().id),JSON.stringify({goodsStatus:this.goodsStatus,orderPage:this.orderPage,statusFilter:this.statusFilter,followPage:this.followPage,fanPage:this.fanPage,scroll:window.scrollY}))},
+    goProduct(id) { if(id){this.saveView();this.goDetailWithReturn(id)} },
+    goProducts(f) {
+      if (!f || !/^[1-9]\d*$/.test(String(f.followUserId || ''))) { msgError('卖家信息无效，请刷新列表'); return }
+      location.href = 'seller.html?id=' + encodeURIComponent(String(f.followUserId))
+    },
+    async pay(order) {
+      return this.runAction('order-'+order.id,async()=>{
+      try {
+        await this.$confirm('确认支付 ¥' + order.payAmount + '？', '模拟支付', { type: 'warning' })
+        await request.post('/order/' + order.id + '/pay')
+        msgSuccess('支付成功')
+        this.loadOrders()
+      } catch (e) { if (e !== 'cancel' && e !== 'close') console.error(e) }
+
+      })
+    },
+    async cancel(order) {
+      return this.runAction('order-'+order.id,async()=>{
+      try {
+        await this.$confirm('确认取消订单？', '提示', { type: 'warning' })
+        await request.post('/order/' + order.id + '/cancel')
+        msgSuccess('订单已取消')
+        this.loadOrders()
+      } catch (e) { if (e !== 'cancel' && e !== 'close') console.error(e) }
+
+      })
+    },
+    async receive(order) {
+      return this.runAction('order-'+order.id,async()=>{
+      try {
+        await this.$confirm('确认已收到商品？', '提示', { type: 'warning' })
+        await request.post('/order/' + order.id + '/receive')
+        msgSuccess('收货成功')
+        this.loadOrders()
+      } catch (e) { if (e !== 'cancel' && e !== 'close') console.error(e) }
+
+      })
+    },
+    contactOrder(order){goMessages(this.isBuyer(order)?order.sellerId:order.buyerId,order.productId)},
+    openTradeOrders(order){location.href='trade.html?order='+encodeURIComponent(order.id)+'#orders'},
+    async ship(order) { location.href='trade.html?order='+encodeURIComponent(order.id)+'#orders' },
+    async unfollow(f) {
+      return this.runAction('follow-'+f.followUserId,async()=>{
+      try {
+        await this.$confirm('取消关注 ' + (f.followNickName || '该卖家') + '？', '提示', { type: 'warning' })
+        await request.delete('/follow/' + f.followUserId)
+        msgSuccess('已取消关注')
+        this.loadFollows()
+        this.loadCounts()
+      } catch (e) { if (e !== 'cancel' && e !== 'close') console.error(e) }
+
+      })
+    },
+    formatTime(t) { return formatDate(t) }
+
+  }
+})
+</script>
+</body>
+</html>

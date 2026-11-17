@@ -1,0 +1,17 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
+const root=path.resolve(__dirname,'../../nginx-1.18.0/nginx-1.18.0/html/girl-shop');
+let options;const calls=[];
+const ctx={console,URLSearchParams,location:{search:'?order=9000001',hash:'#orders'},sessionStorage:{getItem:()=>null},axios:{create:()=>({interceptors:{request:{use(){}},response:{use(){}}}})},Vue:function(o){options=o},ELEMENT:{},FormData};
+ctx.Vue.use=()=>{};ctx.Vue.mixin=()=>{};ctx.Vue.component=()=>{};
+vm.runInNewContext(fs.readFileSync(path.join(root,'js/common.js'),'utf8'),ctx);
+const html=fs.readFileSync(path.join(root,'trade.html'),'utf8');
+const script=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).find(s=>s.includes('new Vue('));
+vm.runInNewContext(script,ctx);
+const p=options.data();for(const [k,v] of Object.entries(options.methods))p[k]=v.bind(p);
+assert.equal(p.tab,'orders');assert.equal(p.focusedOrder,'9000001');assert.equal(p.ORDER_STATUS_MAP[2],'待收货');
+vm.runInNewContext("request.get=async function(url){mockCalls.push(url);return {data:url==='/trade/unread'?{notices:0,messages:0}:url.startsWith('/order/')?{id:'9000001'}:[]}}",Object.assign(ctx,{mockCalls:calls}));
+(async()=>{p.tab='orders';await p.load();assert.equal(p.failed,false);assert.equal(p.orders[0].id,'9000001');assert.ok(calls.includes('/order/9000001'));
+ p.openPeer('30');assert.equal(ctx.location.href,'login.html?next=messages.html%3Fpeer%3D30');
+ p.reportOpen=false;p.openReport('PRODUCT','2');assert.equal(p.reportOpen,true);assert.equal(p.reportForm.targetId,'2');
+ console.log('PASS: trade page initializes, loads focused orders, resets conversation cards and opens reports.');
+})().catch(e=>{console.error(e);process.exitCode=1});

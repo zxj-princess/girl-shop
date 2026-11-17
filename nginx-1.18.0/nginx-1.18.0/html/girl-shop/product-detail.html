@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品详情 - 粉系衣橱</title>
+  <link rel="stylesheet" href="lib/element-ui/index.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="lib/axios.min.js"></script>
+  <script src="js/common.js"></script>
+  <style>
+    .detail-wrap { display: flex; gap: 24px; margin-top: 20px; align-items: flex-start; }
+    .detail-left { flex: 0 0 55%; width: 55%; }
+    .detail-right { flex: 1; min-width: 0; }
+    .el-carousel__item img { width: 100%; height: 460px; object-fit: cover; border-radius: var(--radius-card); }
+    .no-image { width: 100%; height: 460px; background: var(--pink-lighter); border-radius: var(--radius-card); display: flex; align-items: center; justify-content: center; color: var(--pink-dark); font-size: 14px; }
+    .detail-title { font-size: 18px; font-weight: 600; color: var(--text-main); line-height: 1.5; }
+    .price-row { margin: 14px 0 4px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .price-now { color: var(--pink-dark); font-size: 26px; font-weight: 600; }
+    .price-now .unit { font-size: 15px; }
+    .price-origin { color: var(--text-muted); font-size: 14px; text-decoration: line-through; }
+    .sale-meta { color: var(--text-muted); font-size: 13px; }
+    .tag-row { margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+    .seller-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--pink-bg); border-radius: var(--radius-card); margin: 14px 0; border: 1px solid var(--border); }
+    .seller-row .nick { font-weight: 600; color: var(--text-main); font-size: 14px; }
+    .seller-row .label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .desc-box { background: var(--pink-bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px; margin-top: 14px; color: var(--text-sub); line-height: 1.8; white-space: pre-wrap; font-size: 14px; }
+    .desc-title { color: var(--pink-dark); font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+    .flash-banner { background: var(--pink-lighter); border-radius: var(--radius-card); padding: 14px 16px; margin: 14px 0; color: var(--pink-dark); border: 1px solid var(--pink-light); }
+    .flash-banner .fp-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .flash-banner .fp-label { font-size: 13px; font-weight: 600; }
+    .flash-banner .fp-value { font-size: 26px; font-weight: 600; color: var(--pink-dark); }
+    .flash-banner .fp-value .unit { font-size: 15px; }
+    .flash-banner .fp-origin { font-size: 13px; text-decoration: line-through; color: var(--text-muted); }
+    .flash-banner .cd-row { margin-top: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .flash-banner .cd-time { font-family: monospace; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+    .action-row { margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .section-card { padding: 20px; margin-top: 20px; }
+    .msg-item { padding: 14px 0; border-bottom: 1px dashed var(--border); }
+    .msg-item:last-child { border-bottom: none; }
+    .msg-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .avatar-circle { width: 34px; height: 34px; border-radius: 50%; background: var(--pink-lighter); color: var(--pink-dark); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; }
+    .msg-nick { font-weight: 600; color: var(--text-main); font-size: 14px; }
+    .msg-time { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+    .msg-content { color: var(--text-sub); padding-left: 44px; line-height: 1.6; font-size: 14px; }
+    .msg-reply { background: var(--pink-lighter); border-left: 2px solid var(--pink); padding: 8px 12px; margin: 8px 0 0 44px; border-radius: 4px; font-size: 13px; color: var(--text-sub); line-height: 1.6; }
+    .msg-reply .reply-label { color: var(--pink-dark); font-weight: 600; margin-right: 6px; }
+    .reply-action { color: var(--pink); cursor: pointer; font-size: 12px; flex-shrink: 0; }
+    .reply-action:hover { color: var(--pink-dark); }
+    .review-item { padding: 14px 0; border-bottom: 1px dashed var(--border); }
+    .review-item:last-child { border-bottom: none; }
+    .review-content { color: var(--text-sub); padding-left: 44px; line-height: 1.6; font-size: 14px; }
+    .msg-input-row { display: flex; gap: 10px; margin-top: 16px; align-items: flex-start; }
+    .similar-section { margin-top: 26px; }
+    .similar-section .section-title { border-bottom: none; margin-bottom: 16px; }
+    .similar-card { cursor: pointer; position: relative; }
+    .similar-card .flash-badge { position: absolute; top: 8px; left: 8px; background: var(--pink-dark); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; z-index: 1; }
+    .el-empty { padding: 30px 0; }
+    .show-item { padding: 14px 0; border-bottom: 1px dashed var(--border); }
+    .show-item:last-child { border-bottom: none; }
+    .show-images { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 8px 44px; }
+    .show-thumb { width: 90px; height: 90px; object-fit: cover; border-radius: var(--radius-btn); cursor: pointer; border: 1px solid var(--border); transition: border-color .2s; }
+    .show-thumb:hover { border-color: var(--pink); }
+    .show-content { color: var(--text-sub); padding-left: 44px; line-height: 1.6; font-size: 14px; }
+    .summary-row { float: right; font-size: 13px; color: var(--pink-dark); font-weight: normal; }
+    .review-tabs .el-tabs__item.is-active { color: var(--pink-dark); font-weight: 600; }
+    .review-tabs .el-tabs__active-bar { background-color: var(--pink); }
+    /* 地址选择弹窗样式 */
+    .addr-list { max-height: 280px; overflow-y: auto; }
+    .addr-item { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px;
+                 cursor: pointer; transition: all 0.2s; }
+    .addr-item:hover { border-color: var(--pink); background: #fff7f9; }
+    .addr-item.active { border-color: var(--pink-dark); background: #fff0f5; box-shadow: 0 2px 8px rgba(248,187,208,0.3); }
+    .addr-detail { font-size: 13px; color: #888; margin-top: 4px; padding-left: 28px; }
+    .confirm-row { padding: 10px 0 4px; border-top: 1px dashed var(--border); margin-top: 6px; }
+    .pink-text { color: var(--pink-dark); font-weight: 500; }
+    .pink-price { color: #e06c9a; font-weight: 700; }
+    @media (max-width: 900px) {
+      .detail-wrap { flex-direction: column; }
+      .detail-left { width: 100%; flex: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+
+  <div class="gs-container" v-loading="loading">
+    <el-alert v-if="productError" title="商品信息加载失败" type="error" :closable="false"><el-button @click="loadProduct">重试</el-button></el-alert>
+    <el-button type="text" @click="backToProducts">返回商品列表</el-button>
+    <!-- 商品主体 -->
+    <div class="detail-wrap" v-loading="loading">
+      <!-- 左：图片轮播 -->
+      <div class="detail-left">
+        <div class="gs-card">
+          <el-carousel height="460px" :autoplay="false" indicator-position="outside" v-if="imageList.length">
+            <el-carousel-item v-for="(img, i) in imageList" :key="i">
+              <img :src="img" :alt="product ? product.title : '商品图片'">
+            </el-carousel-item>
+          </el-carousel>
+          <div v-else class="no-image">🌸 暂无图片</div>
+        </div>
+      </div>
+
+      <!-- 右：信息面板 -->
+      <div class="detail-right" v-if="product">
+        <div class="gs-card" style="padding: 20px;">
+          <div class="detail-title">{{ product.title }}</div>
+
+          <!-- 捡漏横幅 -->
+          <div class="flash-banner" v-if="product.isFlash == 1">
+            <div class="fp-row">
+              <span class="fp-label">⚡ 限量捡漏价</span>
+              <span class="fp-value"><span class="unit">¥</span>{{ formatMoney(product.flashPrice) }}</span>
+              <span class="fp-origin">原价 ¥{{ formatMoney(product.price) }}</span>
+            </div>
+            <div class="cd-row">
+              <span>⏰ 距结束</span>
+              <span class="cd-time">{{ countdown }}</span>
+              <span v-if="product.stock != null">仅剩 {{ product.stock }} 件</span>
+            </div>
+          </div>
+
+          <!-- 普通价格区 -->
+          <div class="price-row" v-else>
+            <span class="price-now"><span class="unit">¥</span>{{ formatMoney(product.price) }}</span>
+            <span class="price-origin" v-if="product.originalPrice">原价 ¥{{ formatMoney(product.originalPrice) }}</span>
+            <span class="sale-meta">已售 {{ product.sold || 0 }} · 浏览 {{ product.views || 0 }}</span>
+          </div>
+
+          <!-- 标签行 -->
+          <div class="tag-row">
+            <el-tag v-if="product.brand" type="warning" effect="plain" size="small">品牌：{{ product.brand }}</el-tag>
+            <el-tag v-if="product.size" type="warning" effect="plain" size="small">尺码：{{ product.size }}</el-tag>
+            <el-tag type="warning" effect="plain" size="small">成色：{{ conditionText }}</el-tag>
+            <el-tag v-if="product.categoryName" effect="plain" size="small">{{ product.categoryName }}</el-tag>
+            <el-tag v-if="product.isFlash == 1" type="danger" effect="dark" size="small">🔥 捡漏中</el-tag>
+          </div>
+
+          <!-- 卖家信息 -->
+          <div class="seller-row">
+            <el-avatar :size="40" :src="sellerIcon || null">{{ (product.sellerNickName || '卖').charAt(0) }}</el-avatar>
+            <div>
+              <div class="nick">{{ product.sellerNickName || '匿名卖家' }}</div>
+              <div class="label">卖家<span v-if="product.createTime"> · 发布于 {{ formatDate(product.createTime) }}</span></div>
+            </div>
+            <el-button v-if="!isOwner" :type="isFollowing ? 'danger' : 'primary'" round size="small"
+                       style="margin-left:auto;" :loading="followLoading" @click="toggleFollow">
+              <span v-if="isFollowing">❤️ 已关注</span>
+              <span v-else>＋ 关注</span>
+            </el-button>
+          </div>
+
+          <!-- 捡漏商品操作按钮 -->
+          <div class="action-row" v-if="!isOwner">
+            <el-button round @click="contactSeller">联系卖家</el-button>
+            <el-button round @click="reportProduct">举报商品</el-button>
+          </div>
+          <div class="action-row" v-if="product.isFlash == 1">
+            <el-button type="primary" round :loading="submitting" :disabled="flashEnded" @click="openAddressDialog">
+              ⚡ 立即捡漏
+            </el-button>
+            <el-button :type="isFavorited ? 'danger' : 'default'" round @click="toggleFavorite">
+              <span v-if="isFavorited">❤️ 已收藏</span>
+              <span v-else>🤍 收藏</span>
+            </el-button>
+          </div>
+          <!-- 普通商品操作按钮 -->
+          <div class="action-row" v-else>
+            <el-button v-if="product.status == 1" type="primary" round :loading="submitting" @click="openAddressDialog">
+              🛒 立即购买
+            </el-button>
+            <el-button v-else type="info" round disabled>
+              {{ product.status == 2 ? '已售出' : '已下架' }}
+            </el-button>
+            <el-button :type="isFavorited ? 'danger' : 'default'" round @click="toggleFavorite">
+              <span v-if="isFavorited">❤️ 已收藏</span>
+              <span v-else>🤍 收藏</span>
+            </el-button>
+          </div>
+
+          <!-- 描述 -->
+          <div class="desc-box">
+            <div class="desc-title">📝 商品描述</div>
+            <div>{{ product.description || '暂无描述' }}</div>
+            <strong>实测信息</strong><div>{{ product.measurements || '卖家暂未提供，购买前可私信确认尺寸' }}</div>
+            <strong>瑕疵说明</strong><div>{{ product.defects || '卖家暂未说明，购买前请确认成色及细节图片' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 留言咨询区 -->
+    <div class="gs-card section-card" v-if="product">
+      <div class="section-title">💬 留言咨询 <span style="font-size:13px;color:#999;font-weight:normal;">({{ messages.length }})</span></div>
+      <div v-if="messagesError"><p>留言加载失败</p><el-button @click="loadMessages">重试</el-button></div><el-empty v-else-if="messages.length === 0" description="暂无留言，快来咨询卖家吧～" :image-size="80"></el-empty>
+      <div class="msg-item" v-for="m in messages" :key="m.id">
+        <div class="msg-header">
+          <span class="avatar-circle">{{ (m.userNickName || '匿').charAt(0) }}</span>
+          <span class="msg-nick">{{ m.userNickName || '匿名用户' }}</span>
+          <span class="msg-time">{{ formatTime(m.createTime) }}</span>
+          <span v-if="isOwner && !m.reply" class="reply-action" @click="replyMessage(m)">回复</span>
+        </div>
+        <div class="msg-content">{{ m.content }}</div>
+        <div class="msg-reply" v-if="m.reply">
+          <span class="reply-label">卖家回复：</span>{{ m.reply }}
+          <span v-if="m.replyTime" style="font-size:12px;color:#bbb;margin-left:8px;">{{ formatTime(m.replyTime) }}</span>
+        </div>
+      </div>
+      <div class="msg-input-row">
+        <el-input v-model="msgContent" type="textarea" :rows="2" maxlength="200" show-word-limit
+                  placeholder="想了解面料、尺码？留言咨询卖家吧～" style="flex:1;"></el-input>
+        <el-button type="primary" round @click="postMessage" :loading="msgSubmitting">发表留言</el-button>
+      </div>
+    </div>
+
+    <section class="gs-card section-card" v-if="product">
+      <div class="section-title">买家评价 <span class="summary-row">{{ reviews.length }} 条<span v-if="reviews.length"> · 平均 {{ (reviews.reduce((sum,r) => sum + Number(r.score),0)/reviews.length).toFixed(1) }} 分</span></span></div>
+      <buyer-review-button :product-id="productId" @submitted="loadReviews"></buyer-review-button>
+      <div v-if="reviewsError"><p>评价加载失败</p><el-button @click="loadReviews">重试</el-button></div><el-empty v-else-if="!reviewsLoading && reviews.length === 0" description="暂无买家评价" :image-size="80"></el-empty>
+      <article class="review-item" v-for="review in reviews" v-show="!reviewsError" :key="review.id">
+        <div class="msg-header"><el-avatar :size="36" :src="review.icon ? imgSrc(review.icon) : ''">{{ (review.nickName || '买').charAt(0) }}</el-avatar>
+          <strong>{{ review.nickName || '买家' }}</strong><el-rate :value="review.score" disabled></el-rate>
+          <span style="margin-left:auto;color:var(--text-muted)">{{ String(review.createTime || '').replace('T',' ').slice(0,16) }}</span>
+        </div>
+        <div class="review-content">{{ review.content }}</div>
+        <div class="buyer-review-photos"><a v-for="url in (review.images || '').split(',').filter(Boolean)" :key="url" :href="imgSrc(url)" target="_blank" rel="noopener"><img :src="imgSrc(url)" alt="买家评价图片" @error="imgError"></a></div>
+      </article>
+    </section>
+
+    <!-- 选择收货地址弹窗 -->
+    <el-dialog title="🛒 选择收货地址" :visible.sync="addrDialogVisible" width="520px" custom-class="addr-dialog">
+      <div class="addr-list">
+        <div class="addr-item" v-for="a in addresses" :key="a.id"
+             :class="{ active: selectedAddressId == a.id }" @click="selectAddr(a)">
+          <el-radio :label="a.id" v-model="selectedAddressId">{{ a.receiverName }} {{ a.receiverPhone }}</el-radio>
+          <div class="addr-detail">
+            <el-tag size="mini" v-if="a.isDefault == 1" type="primary" effect="plain" style="margin-right:6px;">默认</el-tag>
+            {{ a.province }} {{ a.city }} {{ a.district }} {{ a.detail }}
+          </div>
+        </div>
+      </div>
+      <div class="confirm-row">
+        <div class="confirm-info" v-if="product">
+          商品：<span class="pink-text">{{ product.title }}</span> · 金额：<span class="pink-text pink-price">¥{{ formatMoney(product.price) }}</span>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="closeAddrDialog">取 消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitOrder">确认下单</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+  <script>document.write(footerHTML())</script>
+</div>
+
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+<script>
+  Vue.use(ELEMENT); registerPageUtilities(); registerBuyerReviews()
+
+  new Vue({
+    el: '#app',
+    data() {
+      return {
+        productId: new URLSearchParams(location.search).get('id'),
+        product: null,
+        loading: true,
+        imageList: [],
+        isFavorited: false,
+        favLoading: false,
+        submitting: false,
+        // 倒计时
+        countdown: '--:--:--',
+        countdownTimer: null,
+        flashEnded: false,
+        // 留言
+        messages: [],
+        msgContent: '',
+        msgSubmitting: false,
+        // 评价
+        reviews: [],reviewsError:false,reviewsLoading:false,messagesError:false,productError:false,
+        // 地址选择
+        addrDialogVisible: false,
+        addresses: [],
+        selectedAddressId: null,
+        newOrderId: null,
+        // 同类推荐
+        similar: [],
+        // 关注卖家
+        isFollowing: false,
+        followLoading: false,
+
+      }
+    },
+    computed: {
+      conditionText() {
+        return CONDITION_MAP[this.product && this.product.condition] || '未知'
+      },
+      sellerIcon() {
+        return this.product && this.product.sellerIcon ? imgSrc(this.product.sellerIcon) : ''
+      },
+      isOwner() {
+        const u = getUser()
+        return !!(this.product && u && u.id && String(this.product.userId) === String(u.id))
+      }
+    },
+    mounted() {
+      if (!this.productId) { msgError('缺少商品参数'); this.loading = false; return }
+      this.loadProduct()
+      this.loadFavoriteStatus()
+      this.loadMessages()
+      this.loadReviews()
+
+    },
+    beforeDestroy() {
+      if (this.countdownTimer) clearInterval(this.countdownTimer)
+    },
+    methods: {
+      backToProducts(){const from=new URLSearchParams(location.search).get('from');const safe=from&&/^(index|seller|mine)\.html(?:[?#].*)?$/.test(from);location.href=safe?from:'index.html'},
+      navCmd,
+      contactSeller(){goMessages(this.product.userId,this.product.id)},
+      reportProduct(){if(!isLoggedIn()){location.href='login.html';return}location.href='trade.html?report='+encodeURIComponent(this.product.id)+'#reports'},
+      imgSrc,
+      async loadProduct() {
+        this.productError=false
+        this.loading = true
+        try {
+          const res = await request.get('/product/detail/' + this.productId)
+          this.product = res.data
+          this.imageList = (this.product && this.product.images ? this.product.images : '')
+            .split(',').map(s => s.trim()).filter(Boolean).map(imgSrc)
+          if (this.product && this.product.isFlash == 1) this.startCountdown()
+          if (this.product && this.product.categoryId) this.loadSimilar()
+          // 加载关注状态、卖家评价等（依赖 product.userId）
+          this.loadFollowStatus()
+
+
+
+
+        } catch (e) {
+          this.productError=true
+        } finally {
+          this.loading = false
+        }
+      },
+      // 倒计时：每秒刷新
+      startCountdown() {
+        if (this.countdownTimer) clearInterval(this.countdownTimer)
+        const pad = n => String(n).padStart(2, '0')
+        const update = () => {
+          const end = this.product && this.product.flashEndTime ? new Date(String(this.product.flashEndTime).replace(/-/g, '/')).getTime() : NaN
+          if (isNaN(end)) { this.countdown = '时间待定'; return }
+          const diff = end - Date.now()
+          if (diff <= 0) {
+            this.countdown = '已结束'
+            this.flashEnded = true
+            clearInterval(this.countdownTimer)
+            return
+          }
+          const d = Math.floor(diff / 86400000)
+          const h = Math.floor((diff % 86400000) / 3600000)
+          const m = Math.floor((diff % 3600000) / 60000)
+          const s = Math.floor((diff % 60000) / 1000)
+          this.countdown = (d > 0 ? d + '天 ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s)
+        }
+        update()
+        this.countdownTimer = setInterval(update, 1000)
+      },
+      async loadFavoriteStatus() {
+        if (!isLoggedIn() || !this.productId) return
+        try {
+          const res = await request.get('/favorite/status/' + this.productId)
+          this.isFavorited = res.data === true || res.data === 'true'
+        } catch (e) { console.error(e) }
+      },
+      async toggleFavorite() {
+        if(this.favLoading)return
+        if (!isLoggedIn()) { location.href = 'login.html'; return }
+        if (!this.productId) return
+        this.favLoading = true
+        try {
+          if (this.isFavorited) {
+            await request.delete('/favorite/' + this.productId)
+            this.isFavorited = false
+            msgSuccess('已取消收藏')
+          } else {
+            await request.post('/favorite/' + this.productId)
+            this.isFavorited = true
+            msgSuccess('收藏成功')
+          }
+        } catch (e) { console.error(e) } finally { this.favLoading = false }
+      },
+      // 普通购买/捡漏购买统一走 openAddressDialog → submitOrder
+      // 普通购买：选择地址
+      async openAddressDialog() {
+        if (!isLoggedIn()) { location.href = 'login.html'; return }
+        try {
+          const res = await request.get('/address/list')
+          this.addresses = res.data || []
+          if (!this.addresses.length) {
+            this.$confirm('您还没有收货地址，是否前往添加？', '提示', {
+              confirmButtonText: '去添加', cancelButtonText: '取消', type: 'warning'
+            }).then(() => { location.href = 'address.html' }).catch(() => {})
+            return
+          }
+          const def = this.addresses.find(a => a.isDefault == 1) || this.addresses[0]
+          this.selectedAddressId = def.id
+          this.addrDialogVisible = true
+        } catch (e) { console.error(e) }
+      },
+      async submitOrder() {
+        if(this.submitting)return
+        if (!this.selectedAddressId) { msgError('请选择收货地址'); return }
+        this.submitting = true
+        try {
+          let orderId
+          if (this.product && this.product.isFlash == 1) {
+            // 捡漏商品：走 flash 接口（Redis 原子减库存 + 一人一单 + 异步落库），附带 addressId
+            const res = await request.post('/order/flash/' + this.productId + '?addressId=' + this.selectedAddressId)
+            msgSuccess('请求已提交，正在创建订单')
+            orderId = await waitFlashOrder(res.data)
+            this.addrDialogVisible = false
+            msgSuccess('捡漏下单成功！')
+          } else {
+            // 普通商品：走 /order 接口（同步扣库存 + 即时落库）
+            const res = await request.post('/order', { productId: this.productId, addressId: this.selectedAddressId })
+            orderId = res.data
+            this.addrDialogVisible = false
+            msgSuccess('下单成功')
+          }
+          this.newOrderId = orderId
+          // 支付确认
+          try {
+            await this.$confirm('是否立即支付？', '支付确认', {
+              confirmButtonText: '立即支付', cancelButtonText: '稍后支付', type: 'success'
+            })
+            await request.post('/order/' + orderId + '/pay')
+            msgSuccess('支付成功')
+          } catch (e) { /* 取消支付 */ }
+          setTimeout(() => { location.href = 'mine.html#orders' }, 600)
+        } catch (e) { console.error(e) } finally { this.submitting = false }
+      },
+      selectAddr(a) {
+        this.selectedAddressId = a.id
+      },
+      closeAddrDialog() {
+        this.addrDialogVisible = false
+      },
+      // 留言
+      async loadMessages() {
+        this.messagesError=false
+        if (!this.productId) return
+        try {
+          const res = await request.get('/message/list/' + this.productId)
+          this.messages = res.data || []
+        } catch (e) { this.messagesError=true }
+      },
+      async postMessage() {
+        if (!isLoggedIn()) { location.href = 'login.html'; return }
+        if (!this.msgContent.trim()) { msgError('请输入留言内容'); return }
+        this.msgSubmitting = true
+        try {
+          await request.post('/message', { productId: this.productId, content: this.msgContent.trim() })
+          this.msgContent = ''
+          msgSuccess('留言成功')
+          this.loadMessages()
+        } catch (e) { console.error(e) } finally { this.msgSubmitting = false }
+      },
+      // 卖家回复留言（prompt 输入）
+      replyMessage(m) {
+        this.$prompt('回复 ' + (m.userNickName || '买家') + '：' + (m.content || ''), '回复留言', {
+          confirmButtonText: '回复',
+          cancelButtonText: '取消',
+          inputPlaceholder: '请输入回复内容',
+          inputPattern: /\S/,
+          inputErrorMessage: '回复内容不能为空'
+        }).then(({ value }) => {
+          return request.post('/message/' + m.id + '/reply', { reply: value.trim() }).then(() => {
+            msgSuccess('回复成功')
+            this.loadMessages()
+          })
+        }).catch(err => { if (err !== 'cancel' && err !== 'close' && err) console.error(err) })
+      },
+      // 评价
+      async loadReviews() {
+        this.reviewsError=false
+        if (!this.productId) return
+        this.reviewsLoading=true
+        try {
+          const res = await request.get('/review/list/' + this.productId)
+          this.reviews = res.data || []
+        } catch (e) { this.reviewsError=true } finally { this.reviewsLoading=false }
+      },
+      // 同类推荐
+      async loadSimilar() {
+        try {
+          const res = await request.get('/product/list', { params: { page: 1, pageSize: 8, categoryId: this.product.categoryId } })
+          this.similar = (res.data || []).filter(p => String(p.id) !== String(this.productId)).slice(0, 8)
+        } catch (e) { console.error(e) }
+      },
+      goDetail(p) { location.href = 'product-detail.html?id=' + p.id },
+      formatTime(t) { return formatDate(t)
+      },
+      // ===== 关注卖家 =====
+      async loadFollowStatus() {
+        if (!isLoggedIn() || !this.product || !this.product.userId) return
+        try {
+          const res = await request.get('/follow/status/' + this.product.userId)
+          this.isFollowing = res.data === true || res.data === 'true'
+        } catch (e) { console.error(e) }
+      },
+      async toggleFollow() {
+        if(this.followLoading)return
+        if (!isLoggedIn()) { location.href = 'login.html'; return }
+        if (!this.product || !this.product.userId) return
+        this.followLoading = true
+        try {
+          const res = this.isFollowing ? await request.delete('/follow/' + this.product.userId) : await request.put('/follow/' + this.product.userId)
+          this.isFollowing = res.data === true || res.data === 'true'
+          msgSuccess(this.isFollowing ? '关注成功' : '已取消关注')
+        } catch (e) { console.error(e) } finally { this.followLoading = false }
+      },
+
+    }
+  })
+</script>
+</body>
+</html>

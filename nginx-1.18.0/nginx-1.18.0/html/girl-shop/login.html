@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>登录 - 粉系衣橱</title>
+<link rel="stylesheet" href="lib/element-ui/index.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { background: var(--pink-bg); min-height: 100vh; }
+  .login-wrap {
+    min-height: calc(100vh - 56px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 20px;
+  }
+  .login-card {
+    width: 400px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 40px 36px 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+  }
+  .login-title {
+    font-size: 22px; font-weight: 600; text-align: center;
+    color: var(--pink-dark); margin-bottom: 6px; letter-spacing: 1px;
+  }
+  .login-sub { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 28px; }
+  .code-row { display: flex; gap: 10px; }
+  .code-row .el-input { flex: 1; }
+  .code-btn { width: 120px; flex-shrink: 0; }
+  .login-tip {
+    font-size: 12px; color: var(--text-muted); text-align: center;
+    margin-top: 16px; line-height: 1.6;
+  }
+</style>
+<script src="lib/axios.min.js"></script>
+<script src="js/common.js"></script>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-title">粉系衣橱</div>
+      <div class="login-sub">二手服装交易 · 温柔交易，安心淘衣</div>
+      <el-form :model="form" :rules="rules" ref="form" label-position="top">
+        <el-form-item prop="phone">
+          <el-input v-model="form.phone" prefix-icon="el-icon-phone" placeholder="请输入手机号" maxlength="11" clearable></el-input>
+        </el-form-item>
+        <el-form-item prop="code">
+          <div class="code-row">
+            <el-input v-model="form.code" prefix-icon="el-icon-key" placeholder="请输入验证码" maxlength="6" @keyup.enter.native="doLogin"></el-input>
+            <el-button class="code-btn" :type="countdown > 0 ? 'default' : 'primary'" plain :disabled="countdown > 0 || sending" @click="sendCode">{{ countdown > 0 ? countdown + 's 后重发' : '获取验证码' }}</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item style="margin-bottom: 0;">
+          <el-button type="primary" style="width:100%;" :loading="loading" @click="doLogin">登 录</el-button>
+        </el-form-item>
+      </el-form>
+      <div class="login-tip">新手机号登录将自动创建账号 · 验证码请查看后端日志</div>
+    </div>
+  </div>
+  <script>document.write(footerHTML())</script>
+</div>
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+<script>
+Vue.use(ELEMENT); registerPageUtilities()
+new Vue({
+  el: '#app',
+  data() {
+    return {
+      form: { phone: '', code: '' },
+      rules: {
+        phone: [
+          { required: true, message: '请输入手机号', trigger: 'blur' },
+          { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' }
+        ],
+        code: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+      },
+      countdown: 0,
+      sending: false,
+      loading: false,
+      timer: null
+    }
+  },
+  watch: {
+    'form.phone': function () { this.refreshCountdown() }
+  },
+  methods: {
+    navCmd,
+    refreshCountdown() {
+      let deadline = 0
+      try { deadline = Number(sessionStorage.getItem('sms:deadline:' + this.form.phone)) || 0 } catch (e) {}
+      this.countdown = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+    },
+    sendCode() {
+      if (this.sending || this.countdown > 0) return
+      if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
+        this.$refs.form.validateField('phone')
+        return
+      }
+      this.doSendCode()
+    },
+    async doSendCode() {
+      this.sending = true
+      const phone = this.form.phone
+      try {
+        await request.post('/user/code', null, { params: { phone } })
+        try {
+          sessionStorage.setItem('sms:lastPhone', phone)
+          sessionStorage.setItem('sms:deadline:' + phone, String(Date.now() + 60000))
+        } catch (e) {}
+        msgSuccess('验证码已发送，请查看后端日志')
+        this.refreshCountdown()
+      } catch (e) { console.error(e) } finally { this.sending = false }
+    },
+    async doLogin() {
+      // 表单校验
+      let valid = false
+      this.$refs.form.validate(function (v) { valid = v })
+      if (!valid) return
+
+      this.loading = true
+      try {
+        // 1. 登录拿 token
+        const loginRes = await request.post('/user/login', { phone: this.form.phone, code: this.form.code })
+        const token = loginRes.data
+        if (!token) {
+          this.$message.error('登录失败，请重试')
+          return
+        }
+        // 2. 用 token 获取用户信息
+        const meRes = await request.get('/user/me', { headers: { authorization: token } })
+        setLogin(token, meRes.data)
+        msgSuccess('登录成功')
+        setTimeout(function () { location.href = loginDestination() }, 400)
+      } catch (e) {
+        // request 拦截器已经弹了 msgError，这里兜底
+        const msg = (e && (e.errorMsg || e.message)) || '登录失败，请检查验证码后重试'
+        this.$message.error(msg)
+      } finally {
+        this.loading = false
+      }
+    }
+  },
+  mounted() {
+    if (isLoggedIn()) location.href = loginDestination()
+    try { this.form.phone = sessionStorage.getItem('sms:lastPhone') || '' } catch (e) {}
+    this.refreshCountdown()
+    this.timer = setInterval(() => this.refreshCountdown(), 1000)
+  },
+  beforeDestroy() {
+    if (this.timer) clearInterval(this.timer)
+  }
+})
+</script>
+</body>
+</html>

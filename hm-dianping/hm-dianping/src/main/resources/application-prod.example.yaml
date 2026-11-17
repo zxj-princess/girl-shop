@@ -1,0 +1,21 @@
+# Production connection template; SMS and payment still require real provider integration.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: "REPLACE_WITH_YOUR_LOCAL_VALUE"
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT:6379}
+    password: "REPLACE_WITH_YOUR_LOCAL_VALUE"
+  rabbitmq:
+    host: ${MQ_HOST}
+    port: ${MQ_PORT:5672}
+    username: ${MQ_USER}
+    password: "REPLACE_WITH_YOUR_LOCAL_VALUE"
+shop:
+  auth:
+    log-simulated-code: false
+logging:
+  level:
+    com.girlshop: INFO

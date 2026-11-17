@@ -1,0 +1,28 @@
+# 编译文件、IDE 和运行日志
+**/target/
+**/.idea/
+**/.vscode/
+*.iml
+**/.runtime/
+*.log
+
+# 本地密码和密钥配置
+.env
+.env.*
+!.env.example
+**/application.yaml
+**/application-prod.yaml
+
+# Nginx 仅保留前端源码和配置
+/nginx-1.18.0/*
+!/nginx-1.18.0/nginx-1.18.0/
+/nginx-1.18.0/nginx-1.18.0/*
+!/nginx-1.18.0/nginx-1.18.0/html/
+!/nginx-1.18.0/nginx-1.18.0/conf/
+**/nginx.pid
+
+# 用户上传图片
+/nginx-1.18.0/nginx-1.18.0/html/girl-shop/imgs/products/
+
+# 面试文档等个人材料
+/deliverables/

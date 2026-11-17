@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>卖家主页 - 粉系衣橱</title>
+  <link rel="stylesheet" href="lib/element-ui/index.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="lib/axios.min.js"></script>
+  <script src="js/common.js"></script>
+  <style>
+    .seller-profile { display:flex;align-items:center;gap:20px;padding:24px;margin:16px 0 24px; }
+    .seller-profile h1 { font-size:22px;margin:0 0 8px; }
+    .seller-profile p { margin:0;color:var(--text-muted); }
+    .seller-products { padding:24px; }
+    .seller-products h2 { font-size:18px;margin:0 0 20px; }
+    .seller-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px; }
+    .seller-grid button { text-align:left;font:inherit;color:inherit;cursor:pointer;padding:0;background:#fff;border:1px solid var(--border); }
+    .seller-grid img { width:100%;aspect-ratio:1;object-fit:cover;display:block; }
+    .seller-item-info { padding:12px; }
+    .seller-item-title { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:8px; }
+    .seller-item-price { color:var(--pink-dark);font-weight:600; }
+    .seller-pagination { margin-top:24px;text-align:center; }
+    @media(max-width:768px) { .seller-grid { grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; } .seller-profile,.seller-products { padding:16px; } }
+  </style>
+</head>
+<body>
+<div id="app">
+  <script>document.write(navbarHTML())</script>
+  <main class="gs-container" v-loading="loading">
+    <el-button type="text" icon="el-icon-arrow-left" @click="back">返回我的关注</el-button>
+    <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon></el-alert>
+    <template v-if="seller">
+      <section class="gs-card seller-profile">
+        <el-avatar :size="64" :src="seller.icon ? imgSrc(seller.icon) : ''">{{ (seller.nickName || '卖').charAt(0) }}</el-avatar>
+        <div><h1>{{ seller.nickName || '卖家' }}的主页</h1><p>在售 {{ total }} 件商品</p></div><el-button v-if="String(seller.id)!==String(currentUserId)" type="primary" plain round style="margin-left:auto" @click="contactSeller">私信</el-button>
+      </section>
+      <section class="gs-card seller-products" v-loading="productsLoading">
+        <h2>在售商品</h2>
+        <el-alert v-if="productsError" :title="productsError" type="error" :closable="false"></el-alert>
+        <el-empty v-else-if="!productsLoading && products.length === 0" description="这位卖家暂时没有在售商品"></el-empty>
+        <div class="seller-grid" v-else>
+          <button class="gs-card" v-for="product in products" :key="product.id" @click="openProduct(product.id)">
+            <img :src="imgSrc(product.images)" :alt="product.title" @error="imgError">
+            <div class="seller-item-info"><div class="seller-item-title">{{ product.title }}</div><span class="seller-item-price">¥{{ formatMoney(product.price) }}</span></div>
+          </button>
+        </div>
+        <div class="seller-pagination" v-if="total > pageSize"><el-pagination layout="prev, pager, next" :total="total" :page-size="pageSize" :current-page.sync="page" @current-change="loadProducts"></el-pagination></div>
+      </section>
+    </template>
+  </main>
+</div>
+<script src="lib/vue.min.js"></script>
+<script src="lib/element-ui/index.js"></script>
+<script>
+Vue.use(ELEMENT); registerPageUtilities()
+new Vue({
+  el:'#app',
+  data() { return { currentUserId:getUser().id||'',sellerId:new URLSearchParams(location.search).get('id'),seller:null,products:[],total:0,page:Math.max(1,Number(new URLSearchParams(location.search).get('page'))||1),pageSize:12,loading:false,productsLoading:false,error:'',productsError:'' } },
+  methods:{
+    navCmd,imgSrc,imgError,contactSeller(){goMessages(this.sellerId)},
+    back() { location.href='mine.html#follows' },
+    openProduct(id) { sessionStorage.setItem('shop:list:'+location.search,JSON.stringify({scroll:window.scrollY}));this.goDetailWithReturn(id) },
+    async loadProducts() {
+      this.productsLoading=true;this.productsError='';history.replaceState(null,'','seller.html?id='+encodeURIComponent(this.sellerId)+'&page='+this.page)
+      try { const res=await request.get('/seller/'+encodeURIComponent(this.sellerId)+'/products',{params:{page:this.page,pageSize:this.pageSize}});this.products=res.data||[];this.total=Number(res.total||0);const saved=sessionStorage.getItem('shop:list:'+location.search);if(saved){sessionStorage.removeItem('shop:list:'+location.search);this.$nextTick(()=>{try{window.scrollTo(0,JSON.parse(saved).scroll||0)}catch(e){}})};const last=Math.max(1,Math.ceil(this.total/this.pageSize));if(this.page>last){this.page=last;return await this.loadProducts()} }
+      catch(e) { this.productsError='商品加载失败，请刷新重试';this.products=[] }
+      finally { this.productsLoading=false }
+    }
+  },
+  async mounted() {
+    if(!/^[1-9]\d*$/.test(this.sellerId||'')){this.error='卖家信息无效，请从关注列表重新进入';return}
+    this.loading=true
+    try { const res=await request.get('/seller/'+encodeURIComponent(this.sellerId));if(!res.data){this.error='卖家不存在';return}this.seller=res.data;await this.loadProducts() }
+    catch(e) { this.error='卖家不存在或主页暂时无法加载' }
+    finally { this.loading=false }
+  }
+})
+</script>
+</body>
+</html>
