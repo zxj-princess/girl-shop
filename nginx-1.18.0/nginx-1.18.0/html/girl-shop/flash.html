@@ -151,7 +151,7 @@ new Vue({
       const s = Math.floor((diff % 60000) / 1000)
       return pad(h) + ':' + pad(m) + ':' + pad(s) + ' 后结束'
     },
-    goDetail(id) { location.href = 'product-detail.html?id=' + id },
+    goDetail(id) { this.goDetailWithReturn(id) },
     async loadFlash() {
       this.loading = true
       try {

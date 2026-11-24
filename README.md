@@ -4,7 +4,7 @@
 
 ## 目录
 
-- `hm-dianping/hm-dianping`：Spring Boot 后端、数据库脚本和测试。
+- `girl-shop/backend`：Spring Boot 后端、数据库脚本和测试。
 - `nginx-1.18.0/nginx-1.18.0/html/girl-shop`：前端页面和静态资源。
 - `nginx-1.18.0/nginx-1.18.0/conf/nginx.conf`：Nginx 配置。
 

@@ -72,7 +72,7 @@ new Vue({
     navCmd,
     imgSrc,
     goHome() { location.href = 'index.html' },
-    goDetail(id) { location.href = 'product-detail.html?id=' + id },
+    goDetail(id) { this.goDetailWithReturn(id) },
     conditionText(c) { return CONDITION_MAP[c] || '-' },
     loadList() {
       this.loading = true

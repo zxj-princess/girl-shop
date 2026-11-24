@@ -87,7 +87,6 @@
 
   <div class="gs-container" v-loading="loading">
     <el-alert v-if="productError" title="商品信息加载失败" type="error" :closable="false"><el-button @click="loadProduct">重试</el-button></el-alert>
-    <el-button type="text" @click="backToProducts">返回商品列表</el-button>
     <!-- 商品主体 -->
     <div class="detail-wrap" v-loading="loading">
       <!-- 左：图片轮播 -->
@@ -125,7 +124,7 @@
           <div class="price-row" v-else>
             <span class="price-now"><span class="unit">¥</span>{{ formatMoney(product.price) }}</span>
             <span class="price-origin" v-if="product.originalPrice">原价 ¥{{ formatMoney(product.originalPrice) }}</span>
-            <span class="sale-meta">已售 {{ product.sold || 0 }} · 浏览 {{ product.views || 0 }}</span>
+            <span class="sale-meta">已售 {{ product.sold || 0 }} · 浏览 {{ product.views || 0 }} · 收藏 {{ product.favoriteCount || 0 }}</span>
           </div>
 
           <!-- 标签行 -->
@@ -161,8 +160,8 @@
               ⚡ 立即捡漏
             </el-button>
             <el-button :type="isFavorited ? 'danger' : 'default'" round @click="toggleFavorite">
-              <span v-if="isFavorited">❤️ 已收藏</span>
-              <span v-else>🤍 收藏</span>
+              <span v-if="isFavorited">❤️ 已收藏（{{ product.favoriteCount || 0 }}）</span>
+              <span v-else>🤍 收藏（{{ product.favoriteCount || 0 }}）</span>
             </el-button>
           </div>
           <!-- 普通商品操作按钮 -->
@@ -174,8 +173,8 @@
               {{ product.status == 2 ? '已售出' : '已下架' }}
             </el-button>
             <el-button :type="isFavorited ? 'danger' : 'default'" round @click="toggleFavorite">
-              <span v-if="isFavorited">❤️ 已收藏</span>
-              <span v-else>🤍 收藏</span>
+              <span v-if="isFavorited">❤️ 已收藏（{{ product.favoriteCount || 0 }}）</span>
+              <span v-else>🤍 收藏（{{ product.favoriteCount || 0 }}）</span>
             </el-button>
           </div>
 
@@ -191,7 +190,7 @@
     </div>
 
     <!-- 留言咨询区 -->
-    <div class="gs-card section-card" v-if="product">
+    <div id="comments" class="gs-card section-card" v-if="product" style="scroll-margin-top:130px">
       <div class="section-title">💬 留言咨询 <span style="font-size:13px;color:#999;font-weight:normal;">({{ messages.length }})</span></div>
       <div v-if="messagesError"><p>留言加载失败</p><el-button @click="loadMessages">重试</el-button></div><el-empty v-else-if="messages.length === 0" description="暂无留言，快来咨询卖家吧～" :image-size="80"></el-empty>
       <div class="msg-item" v-for="m in messages" :key="m.id">
@@ -318,7 +317,6 @@
       if (this.countdownTimer) clearInterval(this.countdownTimer)
     },
     methods: {
-      backToProducts(){const from=new URLSearchParams(location.search).get('from');const safe=from&&/^(index|seller|mine)\.html(?:[?#].*)?$/.test(from);location.href=safe?from:'index.html'},
       navCmd,
       contactSeller(){goMessages(this.product.userId,this.product.id)},
       reportProduct(){if(!isLoggedIn()){location.href='login.html';return}location.href='trade.html?report='+encodeURIComponent(this.product.id)+'#reports'},
@@ -335,6 +333,7 @@
           if (this.product && this.product.categoryId) this.loadSimilar()
           // 加载关注状态、卖家评价等（依赖 product.userId）
           this.loadFollowStatus()
+          if(location.hash==='#comments')this.$nextTick(()=>{const section=document.getElementById('comments');if(section)section.scrollIntoView({block:'start'})})
 
 
 
@@ -382,11 +381,13 @@
         this.favLoading = true
         try {
           if (this.isFavorited) {
-            await request.delete('/favorite/' + this.productId)
+            const res = await request.delete('/favorite/' + this.productId)
+            this.$set(this.product, 'favoriteCount', Number(res.data.favoriteCount))
             this.isFavorited = false
             msgSuccess('已取消收藏')
           } else {
-            await request.post('/favorite/' + this.productId)
+            const res = await request.post('/favorite/' + this.productId)
+            this.$set(this.product, 'favoriteCount', Number(res.data.favoriteCount))
             this.isFavorited = true
             msgSuccess('收藏成功')
           }

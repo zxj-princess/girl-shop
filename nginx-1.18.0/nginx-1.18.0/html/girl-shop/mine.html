@@ -207,7 +207,7 @@
         </el-tab-pane>
 
         <el-tab-pane name="follows">
-          <span slot="label">我的关注 <span class="tab-count">{{ counts.followCount }}</span></span>
+          <span slot="label">我的关注</span>
           <div class="tabs-content" v-loading="followLoading">
             <div v-if="followError" class="empty-wrap"><p>加载失败，请重试</p><el-button @click="loadFollows">重新加载</el-button></div>
             <div v-else-if="!followLoading && follows.length === 0" class="empty-wrap">
@@ -234,7 +234,7 @@
         </el-tab-pane>
 
         <el-tab-pane name="fans">
-          <span slot="label">我的粉丝 <span class="tab-count">{{ counts.fanCount }}</span></span>
+          <span slot="label">我的粉丝</span>
           <div class="tabs-content" v-loading="fanLoading">
             <div v-if="fanError" class="empty-wrap"><p>加载失败，请重试</p><el-button @click="loadFans">重新加载</el-button></div>
             <div v-else-if="!fanLoading && fans.length === 0" class="empty-wrap">

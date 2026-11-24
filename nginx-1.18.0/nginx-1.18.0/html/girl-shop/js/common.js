@@ -1,8 +1,12 @@
 /* ===== 粉系衣橱 公共 JS ===== */
 
 // Element-UI 消息提示（全局可用）
-function msgSuccess(msg) { ELEMENT.Notification.success({ title: '成功', message: msg, offset: 80 }) }
-function msgError(msg) { ELEMENT.Notification.error({ title: '提示', message: msg, offset: 80 }) }
+function msgSuccess(msg) {
+  const concise = {'收藏成功':'已收藏','保存成功':'已保存','删除成功':'已删除','留言成功':'已留言','回复成功':'已回复','评价成功':'已评价',
+    '请求已提交，正在创建订单':'正在创建订单','订单仍在处理中，可在我的订单查看结果':'订单处理中，请查看我的订单'}
+  return ELEMENT.Message({message:concise[msg] || msg,type:'success',duration:1800,offset:20,showClose:false,customClass:'gs-toast'})
+}
+function msgError(msg) { return ELEMENT.Message({message:msg,type:'error',duration:3500,offset:20,showClose:false,customClass:'gs-toast'}) }
 
 /* ---- 登录态：用 sessionStorage（每个标签页独立），保证新标签页打开是未登录状态 ---- */
 
@@ -76,9 +80,57 @@ function imgError(e) {
 }
 
 // 条件映射
-const CONDITION_MAP = { 1: '全新', 2: '九成新', 3: '八成新', 4: '七成新', 5: '六成以下' }
+const CONDITION_MAP = { 1: '全新', 2: '九成新', 3: '八成新', 4: '七成新', 5: '六成以下', 6: '九九新', 7: '九五新' }
+const CONDITION_OPTIONS = [1,6,7,2,3,4,5].map(value=>({value,label:CONDITION_MAP[value]}))
 const STATUS_MAP = { 0: '下架', 1: '在售', 2: '已售出' }
 const ORDER_STATUS_MAP = { 0: '待付款', 1: '待发货', 2: '待收货', 3: '已完成', 4: '已关闭' }
+
+// Return to a known local page, preserving its filters/tab without allowing external destinations.
+function navigationReturnTarget(fallback = 'index.html') {
+  const allowed = /^(?:index|flash|mine|seller|product-detail|my-favorite|trade|messages)\.html(?:[?#].*)?$/
+  const current = (location.pathname || '').split('/').pop()
+  const from = new URLSearchParams(location.search || '').get('from')
+  if (from && allowed.test(from) && from.split(/[?#]/)[0] !== current) return from
+  try {
+    const referrer = new URL(document.referrer)
+    const here = new URL(location.href)
+    const page = referrer.pathname.split('/').pop()
+    const target = page + referrer.search + referrer.hash
+    if (referrer.origin === here.origin && referrer.pathname.slice(0, referrer.pathname.lastIndexOf('/')) === here.pathname.slice(0, here.pathname.lastIndexOf('/'))
+        && page !== current && allowed.test(target)) return target
+  } catch (e) {}
+  return fallback
+}
+
+function pageNavigationHTML() {
+  const page = (location.pathname || '').split('/').pop()
+  const related = {
+    'platform.html': [['mine.html', '我的主页']],
+    'ai-publish.html': [['trade.html#drafts', '我的草稿']],
+    'listing-preview.html': [['trade.html#drafts', '我的草稿']],
+    'publish.html': [['trade.html#drafts', '我的草稿'], ['mine.html#products', '我的发布']],
+    'login.html': [], 'flash.html': [], 'mine.html': [],
+    'messages.html': [['mine.html', '我的主页']],
+    'trade.html': [['mine.html', '我的主页']],
+    'my-favorite.html': [['mine.html', '我的主页']],
+    'address.html': [['mine.html', '我的主页'], ['mine.html#orders', '我的订单']],
+    'user.html': [['mine.html', '我的主页']],
+    'seller.html': [], 'product-detail.html': []
+  }
+  if (!Object.prototype.hasOwnProperty.call(related, page)) return ''
+  const links = [['index.html', '返回首页'], ...related[page]]
+  if (page === 'seller.html' || page === 'product-detail.html') {
+    const target = navigationReturnTarget()
+    const labels = {'index.html':'返回商品列表','flash.html':'返回捡漏列表','mine.html':'返回我的主页',
+      'seller.html':'返回卖家主页','product-detail.html':'返回商品详情','my-favorite.html':'返回我的收藏',
+      'trade.html':'返回交易服务','messages.html':'返回消息'}
+    if (target !== 'index.html') links.push([target, labels[target.split(/[?#]/)[0]] || '返回来源页面'])
+  }
+  const escape = value => value.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+  return '<nav class="gs-page-navigation" aria-label="页面快捷导航"><div class="gs-page-navigation-inner">'
+    + links.map(([href, label], i) => `<a class="gs-page-link${i === 0 ? ' gs-home-link' : ''}" href="${escape(href)}">${i === 0 ? '<span aria-hidden="true">← </span>' : ''}${label}</a>`).join('')
+    + '</div></nav>'
+}
 
 // 获取导航栏 HTML
 function navbarHTML() {
@@ -99,7 +151,7 @@ function navbarHTML() {
           <el-dropdown-item command="orders">我的订单</el-dropdown-item>
           <el-dropdown-item command="reports">我的举报</el-dropdown-item>
           <el-dropdown-item command="blocks">黑名单</el-dropdown-item>
-          <el-dropdown-item command="drafts">商品草稿箱</el-dropdown-item>
+          <el-dropdown-item command="drafts">商品草稿箱</el-dropdown-item><el-dropdown-item command="platform">提醒与管理</el-dropdown-item>
           <el-dropdown-item command="address">收货地址</el-dropdown-item>
           <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
         </el-dropdown-menu>
@@ -108,8 +160,8 @@ function navbarHTML() {
     userArea = `<a class="login-btn" href="login.html">登录</a>`
   }
   return `
-    <div class="gs-navbar">
-      <span class="logo" onclick="location.href='index.html'">🌸 粉系衣橱</span>
+    <header class="gs-site-header"><div class="gs-navbar">
+      <a class="logo" href="index.html" aria-label="粉系衣橱首页">🌸 粉系衣橱</a>
       <nav class="nav-menu">
         <a href="index.html" class="${/\/(?:index.html)?$/.test(location.pathname||'')?'nav-active':''}">首页</a>
         <a href="flash.html" class="${(location.pathname||'').endsWith('/flash.html')?'nav-active':''}">捡漏</a>
@@ -117,11 +169,12 @@ function navbarHTML() {
         <a href="mine.html" class="${/\/(mine|trade|user|publish)\.html$/.test(location.pathname||'')?'nav-active':''}">我的</a>
       </nav>
       <div class="user-area">${userArea}</div>
-    </div>`
+    </div>${pageNavigationHTML()}</header>`
 }
 
 // 导航命令处理
 function navCmd(cmd) {
+  if(cmd==='platform'){location.href='platform.html';return}
   if(cmd==='trade'){location.href='mine.html#orders';return}
   if(cmd==='drafts'||cmd==='reports'||cmd==='blocks'){location.href='trade.html#'+cmd;return}
   const map = { user: 'user.html', mine: 'mine.html', 'my-publish': 'mine.html#products', 'my-favorite': 'my-favorite.html', 'my-follows': 'mine.html#follows', notice: 'messages.html#notices', address: 'address.html', orders: 'mine.html#orders' }
@@ -243,7 +296,7 @@ function registerPageUtilities() {
     mounted(){if(isLoggedIn()){this.unsubscribe=shopRealtime.subscribe(event=>{if(event.type==='counts')this.count=Number(event.counts.messages||0)+Number(event.counts.notices||0)+Number(event.counts.newProducts||0)});shopRealtime.counts().catch(()=>{})}},
     beforeDestroy(){if(this.unsubscribe)this.unsubscribe()}
   })
-  Vue.mixin({data(){return {pendingActions:{}}},methods:{formatMoney,formatDate,
+  Vue.mixin({data(){return {pendingActions:{},conditionOptions:CONDITION_OPTIONS}},methods:{formatMoney,formatDate,
     async runAction(key,task){if(this.pendingActions[key])return;this.$set(this.pendingActions,key,true);try{return await task()}finally{this.$delete(this.pendingActions,key)}},
     goDetailWithReturn(id){location.href='product-detail.html?id='+encodeURIComponent(String(id))+'&from='+encodeURIComponent(location.pathname.split('/').pop()+location.search+location.hash)}
   }})

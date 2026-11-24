@@ -1,0 +1,33 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
+const root=path.resolve(__dirname,'../../nginx-1.18.0/nginx-1.18.0/html/girl-shop');
+let options;const requests=[];let handler=async(url)=>url.startsWith('/trade/peers/')?{data:{id:url.split('/').pop(),nickName:'真实昵称',icon:'',cannotSend:false}}:{data:[]};
+const ctx={console,URLSearchParams,Map,Set,Event,location:{pathname:'/messages.html',search:'',hash:''},history:{replaceState(){}},window:{innerWidth:1280,dispatchEvent(){},addEventListener(){},removeEventListener(){}},document:{hidden:false},sessionStorage:{getItem:k=>k==='token'?'test':k==='user'?'{"id":"10","nickName":"我"}':null},axios:{create:()=>({interceptors:{request:{use(){}},response:{use(){}}}})},Vue:function(o){options=o},ELEMENT:{}};
+ctx.Vue.use=()=>{};ctx.Vue.mixin=()=>{};ctx.Vue.component=()=>{};
+vm.runInNewContext(fs.readFileSync(path.join(root,'js/common.js'),'utf8'),ctx);
+ctx.handle=(url,body)=>{requests.push({url,body});return handler(url,body)};
+vm.runInNewContext('request.get=(url)=>handle(url);request.post=(url,body)=>handle(url,body)',ctx);
+vm.runInNewContext(fs.readFileSync(path.join(root,'js/messages.js'),'utf8'),ctx);
+function page(){const p=options.data();p.$set=(o,k,v)=>{o[k]=v};p.$nextTick=f=>f();p.$refs={};for(const [k,v]of Object.entries(options.methods))p[k]=v.bind(p);for(const [k,v]of Object.entries(options.computed))Object.defineProperty(p,k,{get:()=>v.call(p)});return p;}
+(async()=>{
+ assert.ok(ctx.navbarHTML().includes('<message-nav>'));assert.equal(ctx.loginDestination(),'index.html');
+ ctx.location.search='?next='+encodeURIComponent('messages.html?peer=7&product=2#chats');assert.equal(ctx.loginDestination(),'messages.html?peer=7&product=2#chats');ctx.location.search='?next=messages.html.evil.com';assert.equal(ctx.loginDestination(),'index.html');
+ const p=page();await p.selectPeer('7');assert.equal(p.peer.nickName,'真实昵称');assert.equal(p.displayContacts[0].id,'7');assert.equal(p.canCompose,true);
+ handler=async url=>{if(url.startsWith('/trade/peers/'))throw {errorMsg:'该用户已不可用'};return{data:[]}};await p.selectPeer('999');assert.equal(p.unavailable,true);assert.equal(p.canCompose,false);
+ let release;handler=url=>url==='/trade/peers/7'?new Promise(r=>release=r):Promise.resolve(url.startsWith('/trade/peers/')?{data:{id:'8',nickName:'用户八'}}:{data:[]});const stale=p.selectPeer('7');await p.selectPeer('8');release({data:{id:'7',nickName:'旧会话'}});await stale;assert.equal(p.peer.id,'8');
+ let finish;handler=(url,body)=>url==='/trade/messages'?new Promise(r=>finish=r):Promise.resolve({data:[]});p.peer={id:'8',cannotSend:false};p.text='消息测试';const sending=p.send();await p.send();assert.equal(requests.filter(r=>r.url==='/trade/messages').length,1);finish({});await sending;
+ const imagePage=page();imagePage.peerId='8';imagePage.peer={id:'8',cannotSend:false};imagePage.imageDrafts['8']=['/imgs/products/10/test.png'];
+ let imageBody;handler=async(url,body)=>{if(url==='/trade/messages')imageBody=body;return {data:[]}};
+ await imagePage.send();assert.equal(imageBody.images[0],'/imgs/products/10/test.png');assert.equal(imageBody.content,'');assert.equal(imagePage.imageDrafts['8'].length,0);
+ imagePage.imageDrafts['8']=['/imgs/products/10/retry.png'];handler=async()=>{throw new Error('offline')};await imagePage.send();assert.equal(imagePage.sendFailed,true);assert.equal(imagePage.imageDrafts['8'].length,1);
+ let sent=0,prevented=0;const keys=page();keys.send=()=>sent++;keys.composerKey({key:'Enter',isComposing:true,preventDefault(){prevented++}});keys.composerKey({key:'Enter',shiftKey:true,preventDefault(){prevented++}});assert.equal(sent,0);keys.composerKey({key:'Enter',preventDefault(){prevented++}});assert.equal(sent,1);assert.equal(prevented,1);
+ let marked;const noticePage=page();noticePage.readNotice=async n=>{marked=n.id;n.isRead=1};
+ await noticePage.openNotice({id:'51',kind:'TRADE',productId:'2',isRead:0});
+ assert.equal(marked,'51');assert.equal(ctx.location.href,'product-detail.html?id=2&from=messages.html%23notices#comments');
+ await noticePage.openNotice({id:'52',kind:'NEW',productId:'3',isRead:0});assert.equal(ctx.location.href,'product-detail.html?id=3&from=messages.html%23notices');
+ let navigation;ctx.Vue.component=(name,definition)=>{if(name==='message-nav')navigation=definition};ctx.registerPageUtilities();
+ let countsListener;ctx.captureCounts=listener=>{countsListener=listener};
+ vm.runInNewContext('shopRealtime.subscribe=listener=>{captureCounts(listener);return ()=>{}};shopRealtime.counts=async()=>({messages:0,notices:0,newProducts:0})',ctx);
+ const badge=navigation.data();navigation.mounted.call(badge);countsListener({type:'counts',counts:{messages:2,notices:1,newProducts:0}});assert.equal(badge.count,3,'comment unread notices join the navigation badge total');
+ countsListener({type:'counts',counts:{messages:0,notices:0,newProducts:0}});assert.equal(badge.count,0,'reading notices clears badge');
+ console.log('PASS: unread badge totals, comment notice read/navigation, safe login return, first-contact identity, stale responses, duplicate send and Chinese input keys.');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -75,7 +75,7 @@ body{--pink:#bd7291;--pink-dark:#a94f74;--pink-light:#ecd3df;--pink-lighter:#f5e
 
       <!-- 右侧商品网格 -->
       <section class="content"><div class="listing-heading"><div><h2>衣橱好物</h2><span v-if="!loading&&!listError">共 {{ total }} 件商品</span></div>        <div class="sort-btns" style="display:inline-flex;gap:8px;margin-left:8px;">
-          <el-button round size="medium" :type="filters.orderBy === 'new' ? 'primary' : 'default'" @click="setSort('new')">最新</el-button>
+          <el-button v-if="filters.keyword" round size="medium" :type="filters.orderBy==='relevance'?'primary':'default'" @click="setSort('relevance')">相关度</el-button><el-button round size="medium" :type="filters.orderBy === 'new' ? 'primary' : 'default'" @click="setSort('new')">最新</el-button>
           <el-button round size="medium" :type="filters.orderBy === 'sold' ? 'primary' : 'default'" @click="setSort('sold')">销量</el-button>
           <el-button round size="medium" :type="isPriceSort ? 'primary' : 'default'" @click="setSort('price')">
             价格<span v-if="isPriceSort" style="margin-left:2px;">{{ filters.orderBy === 'priceAsc' ? '↑' : '↓' }}</span>
@@ -86,7 +86,7 @@ body{--pink:#bd7291;--pink-dark:#a94f74;--pink-light:#ecd3df;--pink-lighter:#f5e
             <div class="gs-product-card gs-card" v-for="p in products" :key="p.id" @click="goDetail(p.id)">
               <img class="product-image" :src="imgSrc(p.images)" :alt="p.title" loading="lazy">
               <div class="product-info">
-                <div class="product-title">{{ p.title }}</div>
+                <div class="product-title"><span v-for="(part,i) in highlightTitle(p.title)" :key="i"><mark v-if="part.match">{{part.text}}</mark><template v-else>{{part.text}}</template></span></div>
                 <div class="product-price">¥{{ formatMoney(p.price) }}<span class="origin" v-if="p.originalPrice">¥{{ formatMoney(p.originalPrice) }}</span></div>
                 <div class="product-tags">
                   <el-tag v-if="p.isFlash == 1" type="danger" size="mini" effect="dark">⚡捡漏</el-tag>
@@ -120,7 +120,7 @@ new Vue({
       filters: { keyword: '', categoryId: null, brand: '', size: '', condition: '', orderBy: 'new' },
       categories: [],
       sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '均码'],
-      conditionOptions: Object.keys(CONDITION_MAP).map(function (k) { return { value: Number(k), label: CONDITION_MAP[k] } }),
+      conditionOptions: CONDITION_OPTIONS,
       products: [],
       total: 0,
       page: 1,
@@ -135,12 +135,13 @@ new Vue({
   methods: {
     goPublish,
     clearFilters(){this.filters={keyword:'',categoryId:null,brand:'',size:'',condition:'',orderBy:'new'};this.search()},
+    highlightTitle(title){const value=String(title||''),key=this.filters.keyword.trim();if(!key)return [{text:value,match:false}];const parts=[];let start=0,index;while((index=value.toLowerCase().indexOf(key.toLowerCase(),start))>=0){if(index>start)parts.push({text:value.slice(start,index),match:false});parts.push({text:value.slice(index,index+key.length),match:true});start=index+key.length}if(start<value.length)parts.push({text:value.slice(start),match:false});return parts},
     navCmd,formatMoney,
     imgSrc,
     search() { this.page = 1; this.loadProducts() },
     // 排序切换：最新=发布时间倒序；销量=销量倒序；价格=首次点击升序，再次点击降序
     setSort(type) {
-      if (type === 'new') {
+      if(type==='relevance'){this.filters.orderBy='relevance'} else if (type === 'new') {
         this.filters.orderBy = 'new'
       } else if (type === 'sold') {
         this.filters.orderBy = 'sold'

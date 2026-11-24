@@ -106,6 +106,6 @@ new Vue({
     async loadInbox(quiet){try{const r=await request.get('/trade/inbox',{params:{page:this.noticePage},quiet:quiet===true});this.inbox=r.data||[];this.noticeTotal=Number(r.total)||0;this.inboxFailed=false;const last=Math.max(1,Math.ceil(this.noticeTotal/20));if(this.noticePage>last){this.noticePage=last;await this.loadInbox(quiet)}}catch(e){this.inboxFailed=true}},
     async readNotice(n){try{await request.put('/trade/inbox/'+n.kind+'/'+n.id+'/read');n.isRead=1;await this.loadCounts()}catch(e){}},
     async readAll(){return this.runAction('read-all',async()=>{try{await request.put('/trade/inbox/read-all');await this.loadInbox();await this.loadCounts()}catch(e){}})},
-    async openNotice(n){try{await this.readNotice(n)}catch(e){console.error(e)}if(n.orderId)location.href='trade.html?order='+encodeURIComponent(n.orderId)+'#orders';else if(n.productId)location.href='product-detail.html?id='+encodeURIComponent(n.productId)}
+    async openNotice(n){try{await this.readNotice(n)}catch(e){console.error(e)}if(n.orderId)location.href='trade.html?order='+encodeURIComponent(n.orderId)+'#orders';else if(n.productId)location.href='product-detail.html?id='+encodeURIComponent(n.productId)+'&from='+encodeURIComponent('messages.html#notices')+(n.kind==='TRADE'?'#comments':'')}
   }
 })

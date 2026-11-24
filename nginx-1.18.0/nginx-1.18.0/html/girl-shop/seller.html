@@ -28,7 +28,6 @@
 <div id="app">
   <script>document.write(navbarHTML())</script>
   <main class="gs-container" v-loading="loading">
-    <el-button type="text" icon="el-icon-arrow-left" @click="back">返回我的关注</el-button>
     <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon></el-alert>
     <template v-if="seller">
       <section class="gs-card seller-profile">
@@ -48,7 +47,7 @@
         <div class="seller-pagination" v-if="total > pageSize"><el-pagination layout="prev, pager, next" :total="total" :page-size="pageSize" :current-page.sync="page" @current-change="loadProducts"></el-pagination></div>
       </section>
     </template>
-  </main>
+  <section v-if="credit" class="seller-credit"><h3>交易记录</h3><p>已完成 {{credit.completedOrders}} 单 · 收到 {{credit.reviews}} 条评价 · 平均评分 {{credit.averageScore==null?'暂无':credit.averageScore}}</p></section></main>
 </div>
 <script src="lib/vue.min.js"></script>
 <script src="lib/element-ui/index.js"></script>
@@ -56,10 +55,9 @@
 Vue.use(ELEMENT); registerPageUtilities()
 new Vue({
   el:'#app',
-  data() { return { currentUserId:getUser().id||'',sellerId:new URLSearchParams(location.search).get('id'),seller:null,products:[],total:0,page:Math.max(1,Number(new URLSearchParams(location.search).get('page'))||1),pageSize:12,loading:false,productsLoading:false,error:'',productsError:'' } },
+  data() { return { currentUserId:getUser().id||'',sellerId:new URLSearchParams(location.search).get('id'),seller:null,credit:null,products:[],total:0,page:Math.max(1,Number(new URLSearchParams(location.search).get('page'))||1),pageSize:12,loading:false,productsLoading:false,error:'',productsError:'' } },
   methods:{
     navCmd,imgSrc,imgError,contactSeller(){goMessages(this.sellerId)},
-    back() { location.href='mine.html#follows' },
     openProduct(id) { sessionStorage.setItem('shop:list:'+location.search,JSON.stringify({scroll:window.scrollY}));this.goDetailWithReturn(id) },
     async loadProducts() {
       this.productsLoading=true;this.productsError='';history.replaceState(null,'','seller.html?id='+encodeURIComponent(this.sellerId)+'&page='+this.page)
@@ -71,7 +69,7 @@ new Vue({
   async mounted() {
     if(!/^[1-9]\d*$/.test(this.sellerId||'')){this.error='卖家信息无效，请从关注列表重新进入';return}
     this.loading=true
-    try { const res=await request.get('/seller/'+encodeURIComponent(this.sellerId));if(!res.data){this.error='卖家不存在';return}this.seller=res.data;await this.loadProducts() }
+    try { const res=await request.get('/seller/'+encodeURIComponent(this.sellerId));if(!res.data){this.error='卖家不存在';return}this.seller=res.data;this.credit=(await request.get('/seller/'+encodeURIComponent(this.sellerId)+'/credit')).data;await this.loadProducts() }
     catch(e) { this.error='卖家不存在或主页暂时无法加载' }
     finally { this.loading=false }
   }

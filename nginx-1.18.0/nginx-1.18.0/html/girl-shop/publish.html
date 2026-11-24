@@ -20,7 +20,7 @@
     .avatar-uploader .el-upload-list--picture-card .el-upload-list__item { width: 100px; height: 100px; }
   </style>
 <script src="lib/axios.min.js"></script>
-<script src="js/common.js"></script>
+<script src="js/common.js"></script><script src="js/image-tools.js"></script>
 </head>
 <body>
 <div id="app">
@@ -65,7 +65,7 @@
 
           <el-form-item label="成色">
             <el-select v-model="form.condition" placeholder="请选择成色" style="width:200px;">
-              <el-option v-for="(name, key) in conditionMap" :key="key" :label="name" :value="Number(key)"></el-option>
+              <el-option v-for="option in conditionOptions" :key="option.value" :label="option.label" :value="option.value"></el-option>
             </el-select>
           </el-form-item>
 
@@ -91,13 +91,14 @@
               :on-success="handleUploadSuccess"
               :on-error="handleUploadError"
               :on-remove="handleUploadRemove"
-              :on-exceed="handleExceed">
+              :on-exceed="handleExceed"
+              :before-upload="prepareImage">
               <i class="el-icon-plus"></i>
             </el-upload>
-            <div class="upload-tip">最多上传 5 张图片，支持多选，第一张将作为封面展示</div>
+            <div class="upload-tip">最多5张，较大图片会自动压缩；首张为封面。</div><div class="cover-order" v-for="(url,i) in form.images" :key="url"><span>图片 {{i+1}}{{i===0?' · 封面':''}}</span><el-button v-if="i>0" size="mini" @click="form.images.unshift(form.images.splice(i,1)[0])">设为封面</el-button><el-button v-if="i>0" size="mini" @click="form.images.splice(i-1,0,form.images.splice(i,1)[0])">前移</el-button></div>
           </el-form-item>
 
-          <el-form-item label="限量捡漏" v-if="!aiDraft">
+          <el-form-item label="限量捡漏">
             <el-switch :disabled="!!editId && !flashAllowed" v-model="flashOpen" active-color="#f06292"></el-switch>
             <span style="color:#999;font-size:13px;margin-left:10px;">同时设为限量捡漏商品</span>
           </el-form-item>
@@ -196,6 +197,7 @@
       else if(this.draftId) this.loadDraft()
     },
     methods: {
+      prepareImage(file){return prepareProductImage(file)},
       navCmd,
       async loadDraft() {
         this.editLoading=true;this.editError=false
@@ -204,7 +206,7 @@
           this.aiDraft=!!p.aiSourceText;this.aiSourceText=p.aiSourceText||'';if(this.aiDraft){this.form.condition=p.condition==null?null:p.condition;this.form.categoryId=p.categoryId||null;this.form.price=p.price==null?undefined:p.price}
           for(const key of Object.keys(this.form))if(p[key]!=null)this.form[key]=p[key]
           this.imageFiles=(this.form.images||[]).map(url=>({name:url.split('/').pop(),url:imgSrc(url),status:'success',response:{data:[url]}}))
-          if(p.flash&&!this.aiDraft){this.flash=p.flash;this.flashOpen=!!p.flashOpen}
+          if(p.flash){this.flash=p.flash;this.flashOpen=!!p.flashOpen}
         }catch(e){this.editError=true;msgError('草稿加载失败，请重试')}finally{this.$nextTick(()=>{this.editLoading=false;this.dirty=false})}
       },
       async previewDraft(){await this.saveDraft();if(this.draftId&&!this.dirty)location.href='listing-preview.html?draft='+encodeURIComponent(this.draftId)},
@@ -293,7 +295,7 @@
             images: this.form.images
           }
           if (this.form.originalPrice != null) payload.originalPrice = this.form.originalPrice
-          if(this.aiDraft&&this.draftId&&!this.editId){await request.put('/trade/drafts/'+this.draftId,{...payload,aiSourceText:this.aiSourceText,aiReviewRequired:false});this.saved=true;location.href='listing-preview.html?draft='+encodeURIComponent(this.draftId);return}
+          if(this.aiDraft&&this.draftId&&!this.editId){await request.put('/trade/drafts/'+this.draftId,{...payload,flashOpen:this.flashOpen,flash:this.flash,aiSourceText:this.aiSourceText,aiReviewRequired:false});this.saved=true;location.href='listing-preview.html?draft='+encodeURIComponent(this.draftId);return}
           const res = this.editId ? await request.put('/product/'+this.editId,payload) : this.draftId ? (await request.put('/trade/drafts/'+this.draftId,{...payload,aiSourceText:this.aiSourceText}),await request.post('/ai/listings/drafts/'+this.draftId+'/publish',{confirmed:true})) : await request.post('/product', payload)
           const newId = this.editId || res.data
           if (this.flashOpen && newId && (!this.editId || this.flashAllowed)) {
